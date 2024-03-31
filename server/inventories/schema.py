@@ -206,8 +206,6 @@ class Query(graphene.ObjectType):
     inventory_status = graphene.Field(InventoryStatusType, id=graphene.ID())
     inventory_types = graphene.List(InventoryTypeType)
     inventory_type = graphene.Field(InventoryTypeType, id=graphene.ID())
-    inventory_items = graphene.List(InventoryItemType)
-    inventory_item = graphene.Field(InventoryItemType, id=graphene.ID())
 
     def resolve_inventory_statuses(self, info):
         return Status.objects.all()
@@ -221,12 +219,6 @@ class Query(graphene.ObjectType):
     def resolve_inventory_type(self, info, id):
         return Type.objects.get(pk=id)
 
-    def resolve_inventory_items(self, info):
-        return InventoryItem.objects.all()
-
-    def resolve_inventory_item(self, info, id):
-        return InventoryItem.objects.get(pk=id)
-
 
 class Mutation(graphene.ObjectType):
     create_inventory_status = CreateInventoryStatusMutation.Field()
@@ -235,6 +227,3 @@ class Mutation(graphene.ObjectType):
     create_inventory_type = CreateInventoryTypeMutation.Field()
     delete_inventory_type = DeleteInventoryTypeMutation.Field()
     update_inventory_type = UpdateInventoryTypeMutation.Field()
-    create_inventory_item = CreateInventoryItemMutation.Field()
-    delete_inventory_item = DeleteInventoryItemMutation.Field()
-    update_inventory_item = UpdateInventoryItemMutation.Field()
