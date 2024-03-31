@@ -151,7 +151,6 @@ class UpdateAddressMutation(graphene.Mutation):
 
 
 class Query(graphene.ObjectType):
-    hello = graphene.String(default_value="Hello")
     localities = graphene.List(LocalityType)
     locality = graphene.Field(LocalityType, id=graphene.ID())
     neighborhoods = graphene.List(NeighborhoodType)
