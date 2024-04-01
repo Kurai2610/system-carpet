@@ -224,6 +224,7 @@ class Mutation(graphene.ObjectType):
     create_inventory_status = CreateInventoryStatusMutation.Field()
     delete_inventory_status = DeleteInventoryStatusMutation.Field()
     update_inventory_status = UpdateInventoryStatusMutation.Field()
+
     create_inventory_type = CreateInventoryTypeMutation.Field()
     delete_inventory_type = DeleteInventoryTypeMutation.Field()
     update_inventory_type = UpdateInventoryTypeMutation.Field()
