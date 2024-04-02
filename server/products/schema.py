@@ -303,7 +303,7 @@ class UpdateProductMutation(graphene.Mutation):
         id = graphene.ID(required=True)
         image_link = graphene.String()
         price = graphene.Int()
-        category_id = graphene
+        category_id = graphene.ID()
         car_model_id = graphene.ID()
         # inventory data
         name = graphene.String()
