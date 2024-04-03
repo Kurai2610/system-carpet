@@ -435,3 +435,6 @@ class Mutation(graphene.ObjectType):
     create_product = CreateProductMutation.Field()
     delete_product = DeleteProductMutation.Field()
     update_product = UpdateProductMutation.Field()
+
+
+schema = graphene.Schema(query=Query, mutation=Mutation)

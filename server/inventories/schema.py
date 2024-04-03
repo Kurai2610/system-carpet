@@ -28,11 +28,18 @@ class CreateInventoryStatusMutation(graphene.Mutation):
         name = graphene.String(required=True)
 
     status = graphene.Field(InventoryStatusType)
+    errors = graphene.JSONString()
 
     def mutate(self, info, name):
         status = Status(name=name)
+
+        try:
+            status.full_clean()
+        except ValidationError as e:
+            return CreateInventoryStatusMutation(errors=e.message_dict)
+
         status.save()
-        return CreateInventoryStatusMutation(status=status)
+        return CreateInventoryStatusMutation(status=status, errors=None)
 
 
 class DeleteInventoryStatusMutation(graphene.Mutation):
