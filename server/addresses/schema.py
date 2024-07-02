@@ -1,10 +1,10 @@
 import graphene
-from django.db import IntegrityError
 from graphene_django import DjangoObjectType
-from addresses.models import Locality, Neighborhood, Address
+from django.db import IntegrityError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from core.errors import ValidationError as CustomValidationError, DatabaseError
 from core.types import ErrorType
-from django.core.exceptions import ValidationError as DjangoValidationError
+from addresses.models import Locality, Neighborhood, Address
 
 
 class LocalityType(DjangoObjectType):

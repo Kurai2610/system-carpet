@@ -1,167 +1,73 @@
 import graphene
-from django.core.exceptions import ValidationError
 from graphene_django import DjangoObjectType
-from inventories.models import Status, Type, InventoryItem
-
-
-class InventoryStatusType(DjangoObjectType):
-    class Meta:
-        model = Status
-        fields = ("id", "name")
-
-
-class InventoryTypeType(DjangoObjectType):
-    class Meta:
-        model = Type
-        fields = ("id", "name", "low_stock_threshold",
-                  "out_of_stock_threshold")
+from django.db import IntegrityError
+from django.core.exceptions import ValidationError as DjangoValidationError
+import re
+from core.errors import ValidationError as CustomValidationError, DatabaseError
+from core.types import ErrorType
+from inventories.models import InventoryItem
 
 
 class InventoryItemType(DjangoObjectType):
     class Meta:
         model = InventoryItem
-        fields = ("id", "name", "description", "stock", "status", "type")
-
-
-class CreateInventoryStatusMutation(graphene.Mutation):
-    class Arguments:
-        name = graphene.String(required=True)
-
-    status = graphene.Field(InventoryStatusType)
-    errors = graphene.JSONString()
-
-    def mutate(self, info, name):
-        status = Status(name=name)
-
-        try:
-            status.full_clean()
-        except ValidationError as e:
-            return CreateInventoryStatusMutation(errors=e.message_dict)
-
-        status.save()
-        return CreateInventoryStatusMutation(status=status, errors=None)
-
-
-class DeleteInventoryStatusMutation(graphene.Mutation):
-    class Arguments:
-        id = graphene.ID(required=True)
-
-    message = graphene.String()
-
-    def mutate(self, info, id):
-        status = Status.objects.get(pk=id)
-        status.delete()
-        return DeleteInventoryStatusMutation(message="Status deleted")
-
-
-class UpdateInventoryStatusMutation(graphene.Mutation):
-    class Arguments:
-        id = graphene.ID(required=True)
-        name = graphene.String()
-
-    status = graphene.Field(InventoryStatusType)
-
-    def mutate(self, info, id, name):
-        status = Status.objects.get(pk=id)
-
-        status.name = name
-        status.save()
-        return UpdateInventoryStatusMutation(status=status)
-
-
-class CreateInventoryTypeMutation(graphene.Mutation):
-    class Arguments:
-        name = graphene.String(required=True)
-        low_stock_threshold = graphene.Int(required=True)
-        out_of_stock_threshold = graphene.Int(required=True)
-
-    type = graphene.Field(InventoryTypeType)
-
-    def mutate(self, info, name, low_stock_threshold, out_of_stock_threshold):
-        type = Type(name=name, low_stock_threshold=low_stock_threshold,
-                    out_of_stock_threshold=out_of_stock_threshold)
-
-        try:
-            type.full_clean()
-        except ValidationError as e:
-            return CreateInventoryTypeMutation(errors=e.message_dict)
-
-        type.save()
-        return CreateInventoryTypeMutation(type=type)
-
-
-class DeleteInventoryTypeMutation(graphene.Mutation):
-    class Arguments:
-        id = graphene.ID(required=True)
-
-    message = graphene.String()
-
-    def mutate(self, info, id):
-        type = Type.objects.get(pk=id)
-        type.delete()
-        return DeleteInventoryTypeMutation(message="Type deleted")
-
-
-class UpdateInventoryTypeMutation(graphene.Mutation):
-    class Arguments:
-        id = graphene.ID(required=True)
-        name = graphene.String()
-        low_stock_threshold = graphene.Int()
-        out_of_stock_threshold = graphene.Int()
-
-    type = graphene.Field(InventoryTypeType)
-
-    def mutate(self, info, id, name=None, low_stock_threshold=None, out_of_stock_threshold=None):
-        type = Type.objects.get(pk=id)
-
-        if name is not None:
-            type.name = name
-        if low_stock_threshold is not None:
-            type.low_stock_threshold = low_stock_threshold
-        if out_of_stock_threshold is not None:
-            type.out_of_stock_threshold = out_of_stock_threshold
-
-        try:
-            type.full_clean()
-        except ValidationError as e:
-            return UpdateInventoryTypeMutation(errors=e.message_dict)
-
-        type.save()
-        return UpdateInventoryTypeMutation(type=type)
+        fields = "__all__"
 
 
 class CreateInventoryItemMutation(graphene.Mutation):
     class Arguments:
         name = graphene.String(required=True)
-        description = graphene.String()
+        description = graphene.String(required=False)
         stock = graphene.Int(required=True)
-        type_id = graphene.ID(required=True)
+        type = graphene.String(required=True)
 
-    inventory = graphene.Field(InventoryItemType)
-    errors = graphene.JSONString()
+    inventory_item = graphene.Field(InventoryItemType)
+    errors = graphene.List(ErrorType)
 
-    def mutate(self, info, name, description, stock, type_id):
-        type = Type.objects.get(pk=type_id)
-        inventory = InventoryItem(
-            name=name, description=description, stock=stock, type=type)
+    def mutate(self, info, name, description, stock, type):
+        errors = []
 
-        if inventory.stock < type.out_of_stock_threshold:
-            inventory.status = Status.objects.get(name="Out of stock")
-        elif inventory.stock < type.low_stock_threshold:
-            inventory.status = Status.objects.get(name="Low Stock")
-        else:
-            inventory.status = Status.objects.get(name="In stock")
+        if not name:
+            errors.append(ErrorType(code="INVALID_INPUT",
+                          message='Name is required', field='name'))
+
+        if not stock:
+            errors.append(ErrorType(code="INVALID_INPUT",
+                          message='Stock is required', field='stock'))
+
+        if not type:
+            errors.append(ErrorType(code="INVALID_INPUT",
+                          message='Type is required', field='type'))
+
+        if errors:
+            return CreateInventoryItemMutation(inventory_item=None, errors=errors)
 
         try:
-            inventory.full_clean()
-        except ValidationError as e:
-            return CreateInventoryItemMutation(errors=e.message_dict)
-
-        try:
-            inventory.save()
-        except ValidationError as e:
-            return CreateInventoryItemMutation(errors=e.message_dict)
-        return CreateInventoryItemMutation(inventory=inventory)
+            inventory_item = InventoryItem(
+                name=name, description=description, stock=stock, type=type)
+            inventory_item.save()
+            return CreateInventoryItemMutation(inventory_item=inventory_item)
+        except DjangoValidationError as e:
+            for field, error_messages in e.message_dict.items():
+                for error_message in error_messages:
+                    errors.append(ErrorType(code="VALIDATION_ERROR",
+                                  message=error_message, field=field))
+                    return CreateInventoryItemMutation(inventory_item=None, errors=errors)
+        except IntegrityError as e:
+            field_name_match = re.search(
+                r'detail: Key \((\w+)\)=', str(e.__cause__))
+            if field_name_match:
+                field_name = field_name_match.group(1)
+                errors.append(ErrorType(code="DATABASE_ERROR",
+                              message=f'Duplicate value for {field_name}.', field=field_name))
+            else:
+                errors.append(ErrorType(code="DATABASE_ERROR",
+                              message='An error occurred while saving the data.', field='non_field_errors'))
+            return CreateInventoryItemMutation(inventory_item=None, errors=errors)
+        except Exception as e:
+            errors.append(ErrorType(code="UNKNOWN_ERROR",
+                          message=str(e)))
+            return CreateInventoryItemMutation(inventory_item=None, errors=errors)
 
 
 class DeleteInventoryItemMutation(graphene.Mutation):
@@ -169,69 +75,90 @@ class DeleteInventoryItemMutation(graphene.Mutation):
         id = graphene.ID(required=True)
 
     message = graphene.String()
+    errors = graphene.List(ErrorType)
 
     def mutate(self, info, id):
-        inventory = InventoryItem.objects.get(pk=id)
-        inventory.delete()
-        return DeleteInventoryItemMutation(message="Inventory deleted")
+        errors = []
+        try:
+            inventory_item = InventoryItem.objects.get(pk=id)
+            inventory_item.delete()
+            return DeleteInventoryItemMutation(message='Item deleted successfully')
+        except InventoryItem.DoesNotExist:
+            errors.append(ErrorType(code="NOT_FOUND",
+                          message='Item not found', field='id'))
+            return DeleteInventoryItemMutation(message=None, errors=errors)
+        except Exception as e:
+            errors.append(ErrorType(code="UNKNOWN_ERROR",
+                          message=str(e)))
+            return DeleteInventoryItemMutation(message=None, errors=errors)
 
 
 class UpdateInventoryItemMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
-        name = graphene.String()
-        description = graphene.String()
-        stock = graphene.Int()
-        type_id = graphene.ID()
+        name = graphene.String(required=False)
+        description = graphene.String(required=False)
+        stock = graphene.Int(required=False)
+        type = graphene.String(required=False)
 
-    inventory = graphene.Field(InventoryItemType)
-    errors = graphene.JSONString()
+    inventory_item = graphene.Field(InventoryItemType)
+    errors = graphene.List(ErrorType)
 
-    def mutate(self, info, id, name=None, description=None, stock=None, type_id=None):
-        inventory = InventoryItem.objects.get(pk=id)
-
-        if name is not None:
-            inventory.name = name
-        if description is not None:
-            inventory.description = description
-        if stock is not None:
-            inventory.stock = stock
-        if type_id is not None:
-            inventory.type = Type.objects.get(pk=type_id)
-
+    def mutate(self, info, id, name=None, description=None, stock=None, type=None):
+        errors = []
         try:
-            inventory.full_clean()
-        except ValidationError as e:
-            return UpdateInventoryItemMutation(errors=e.message_dict)
+            inventory_item = InventoryItem.objects.get(pk=id)
+            if name:
+                inventory_item.name = name
+            if description:
+                inventory_item.description = description
+            if stock:
+                inventory_item.stock = stock
+            if type:
+                inventory_item.type = type
 
-        inventory.save()
-        return UpdateInventoryItemMutation(inventory=inventory)
+            inventory_item.save()
+            return UpdateInventoryItemMutation(inventory_item=inventory_item)
+        except InventoryItem.DoesNotExist:
+            errors.append(ErrorType(code="NOT_FOUND",
+                          message='Item not found', field='id'))
+            return UpdateInventoryItemMutation(inventory_item=None, errors=errors)
+        except DjangoValidationError as e:
+            for field, error_messages in e.message_dict.items():
+                for error_message in error_messages:
+                    errors.append(ErrorType(code="VALIDATION_ERROR",
+                                  message=error_message, field=field))
+                    return UpdateInventoryItemMutation(inventory_item=None, errors=errors)
+        except IntegrityError as e:
+            field_name_match = re.search(
+                r'detail: Key \((\w+)\)=', str(e.__cause__))
+            if field_name_match:
+                field_name = field_name_match.group(1)
+                errors.append(ErrorType(code="DATABASE_ERROR",
+                              message=f'Duplicate value for {field_name}.', field=field_name))
+            else:
+                errors.append(ErrorType(code="DATABASE_ERROR",
+                              message='An error occurred while saving the data.', field='non_field_errors'))
+            return UpdateInventoryItemMutation(inventory_item=None, errors=errors)
+        except Exception as e:
+            errors.append(ErrorType(code="UNKNOWN_ERROR",
+                          message=str(e)))
+            return UpdateInventoryItemMutation(inventory_item=None, errors=errors)
 
 
 class Query(graphene.ObjectType):
-    inventory_statuses = graphene.List(InventoryStatusType)
-    inventory_status = graphene.Field(InventoryStatusType, id=graphene.ID())
-    inventory_types = graphene.List(InventoryTypeType)
-    inventory_type = graphene.Field(InventoryTypeType, id=graphene.ID())
+    inventory_items = graphene.List(InventoryItemType)
+    inventory_item = graphene.Field(
+        InventoryItemType, id=graphene.ID(required=True))
 
-    def resolve_inventory_statuses(self, info):
-        return Status.objects.all()
+    def resolve_inventory_items(self, info):
+        return InventoryItem.objects.all()
 
-    def resolve_inventory_status(self, info, id):
-        return Status.objects.get(pk=id)
-
-    def resolve_inventory_types(self, info):
-        return Type.objects.all()
-
-    def resolve_inventory_type(self, info, id):
-        return Type.objects.get(pk=id)
+    def resolve_inventory_item(self, info, id):
+        return InventoryItem.objects.get(pk=id)
 
 
 class Mutation(graphene.ObjectType):
-    create_inventory_status = CreateInventoryStatusMutation.Field()
-    delete_inventory_status = DeleteInventoryStatusMutation.Field()
-    update_inventory_status = UpdateInventoryStatusMutation.Field()
-
-    create_inventory_type = CreateInventoryTypeMutation.Field()
-    delete_inventory_type = DeleteInventoryTypeMutation.Field()
-    update_inventory_type = UpdateInventoryTypeMutation.Field()
+    create_inventory_item = CreateInventoryItemMutation.Field()
+    delete_inventory_item = DeleteInventoryItemMutation.Field()
+    update_inventory_item = UpdateInventoryItemMutation.Field()
