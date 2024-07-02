@@ -9,9 +9,14 @@ from inventories.models import InventoryItem
 
 
 class InventoryItemType(DjangoObjectType):
+    status = graphene.String(description='Status of the inventory item')
+
     class Meta:
         model = InventoryItem
         fields = "__all__"
+
+    def resolve_status(self, info):
+        return self.status
 
 
 class CreateInventoryItemMutation(graphene.Mutation):
@@ -32,8 +37,9 @@ class CreateInventoryItemMutation(graphene.Mutation):
                           message='Name is required', field='name'))
 
         if not stock:
-            errors.append(ErrorType(code="INVALID_INPUT",
-                          message='Stock is required', field='stock'))
+            if stock != 0:
+                errors.append(ErrorType(code="INVALID_INPUT",
+                              message='Stock is required', field='stock'))
 
         if not type:
             errors.append(ErrorType(code="INVALID_INPUT",
@@ -112,11 +118,16 @@ class UpdateInventoryItemMutation(graphene.Mutation):
                 inventory_item.name = name
             if description:
                 inventory_item.description = description
-            if stock:
-                inventory_item.stock = stock
+            if stock is not None:
+                if stock >= 0:
+                    inventory_item.stock = stock
+                else:
+                    errors.append(ErrorType(code="INVALID_INPUT",
+                                            message='Stock must be a non-negative value', field='stock'))
             if type:
                 inventory_item.type = type
 
+            inventory_item.full_clean()
             inventory_item.save()
             return UpdateInventoryItemMutation(inventory_item=inventory_item)
         except InventoryItem.DoesNotExist:
