@@ -16,19 +16,25 @@ git clone https://github.com/Kurai2610/system-carpet
 cd system-carpet
 ```
 
-3. Asegúrate de estar en el directorio raíz del proyecto y luego navega a la carpeta `server` donde se encuentra el archivo `requirements.txt`:
+3. Asegúrate de estar en la rama correcta del proyecto:
+
+```bash
+git checkout backend/django_graphql
+```
+
+4. A continuación, navega a la carpeta `server` donde se encuentra el archivo `requirements.txt`:
 
 ```bash
 cd server
 ```
 
-4. Crea un entorno virtual para el proyecto:
+5. Crea un entorno virtual para el proyecto:
 
 ```bash
 python -m venv venv
 ```
 
-5. Activa el entorno virtual:
+6. Activa el entorno virtual:
 
 - En Windows:
 
@@ -42,13 +48,13 @@ python -m venv venv
 source venv/bin/activate
 ```
 
-6. Instala las dependencias del proyecto utilizando `pip`:
+7. Instala las dependencias del proyecto utilizando `pip`:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-7. Copia el archivo `.env.example` a un nuevo archivo llamado `.env` y modifica las variables de entorno según sea necesario para tu configuración local:
+8. Copia el archivo `.env.example` a un nuevo archivo llamado `.env` y modifica las variables de entorno según sea necesario para tu configuración local:
 
 - En Windows:
 
@@ -62,7 +68,7 @@ copy .env.example .env
 cp .env.example .env
 ```
 
-8. Realiza las migraciones necesarias para configurar la base de datos de Django:
+9. Realiza las migraciones necesarias para configurar la base de datos de Django:
 
 ```bash
 python manage.py makemigrations
