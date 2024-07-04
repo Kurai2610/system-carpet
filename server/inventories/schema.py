@@ -9,11 +9,10 @@ from inventories.models import InventoryItem
 
 
 class InventoryItemType(DjangoObjectType):
-    status = graphene.String(description='Status of the inventory item')
-
     class Meta:
         model = InventoryItem
-        fields = "__all__"
+        fields = ('id', 'name', 'description', 'stock',
+                  'type', 'created_at', 'updated_at')
 
     def resolve_status(self, info):
         return self.status
@@ -29,7 +28,7 @@ class CreateInventoryItemMutation(graphene.Mutation):
     inventory_item = graphene.Field(InventoryItemType)
     errors = graphene.List(ErrorType)
 
-    def mutate(self, info, name, description, stock, type):
+    def mutate(self, info, name, stock, type, description=None):
         errors = []
 
         if not name:
@@ -52,7 +51,7 @@ class CreateInventoryItemMutation(graphene.Mutation):
             inventory_item = InventoryItem(
                 name=name, description=description, stock=stock, type=type)
             inventory_item.save()
-            return CreateInventoryItemMutation(inventory_item=inventory_item)
+            return CreateInventoryItemMutation(inventory_item=inventory_item, errors=None)
         except DjangoValidationError as e:
             for field, error_messages in e.message_dict.items():
                 for error_message in error_messages:
@@ -88,7 +87,7 @@ class DeleteInventoryItemMutation(graphene.Mutation):
         try:
             inventory_item = InventoryItem.objects.get(pk=id)
             inventory_item.delete()
-            return DeleteInventoryItemMutation(message='Item deleted successfully')
+            return DeleteInventoryItemMutation(message='Item deleted successfully', errors=None)
         except InventoryItem.DoesNotExist:
             errors.append(ErrorType(code="NOT_FOUND",
                           message='Item not found', field='id'))

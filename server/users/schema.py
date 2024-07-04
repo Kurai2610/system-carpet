@@ -50,7 +50,7 @@ class CreateUserMutation(graphene.Mutation):
                                             message="An error occurred while creating the address. Please try again."))
                     return CreateUserMutation(user=None, errors=errors)
                 addressType = address_mutation_result.address
-                address = Address.objects.get(id=addressType.id)
+                address = Address.objects.get(pk=addressType.id)
                 user.address = address
             user.save()
             return CreateUserMutation(user=user, errors=errors)
