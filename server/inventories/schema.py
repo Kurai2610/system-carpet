@@ -9,13 +9,19 @@ from inventories.models import InventoryItem
 
 
 class InventoryItemType(DjangoObjectType):
+    status = graphene.String(description='Status of the inventory item')
+    type = graphene.String(description='Type of the inventory item')
+
     class Meta:
         model = InventoryItem
         fields = ('id', 'name', 'description', 'stock',
-                  'type', 'created_at', 'updated_at')
+                  'type', 'created_at', 'updated_at', 'status')
 
     def resolve_status(self, info):
         return self.status
+
+    def resolve_type(self, info):
+        return self.get_type_display()
 
 
 class CreateInventoryItemMutation(graphene.Mutation):

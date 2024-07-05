@@ -1,7 +1,7 @@
 import re
 import graphene
 from graphene_django import DjangoObjectType
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError as DjangoValidationError
 from core.errors import ValidationError, DatabaseError
 from core.types import ErrorType
@@ -31,7 +31,7 @@ class CarModelType(DjangoObjectType):
 class ProductCategoryType(DjangoObjectType):
     class Meta:
         model = ProductCategory
-        fields = ("id", "name")
+        fields = ("id", "name", "discount")
 
 
 class ProductType(DjangoObjectType):
@@ -461,33 +461,34 @@ class UpdateCarModelMutation(graphene.Mutation):
 class CreateProductCategoryMutation(graphene.Mutation):
     class Arguments:
         name = graphene.String(required=True)
+        discount = graphene.Int(default_value=0)
 
     product_category = graphene.Field(ProductCategoryType)
     errors = graphene.List(ErrorType)
 
-    def mutate(self, info, name):
+    def mutate(self, info, name, discount=0):
         errors = []
 
         if not name:
             errors.append(ErrorType(code="INVALID_INPUT",
-                          message="Name is required", field="name"))
+                                    message="Name is required", field="name"))
 
         if errors:
             return CreateProductCategoryMutation(product_category=None, errors=errors)
 
         try:
-            product_category = ProductCategory(name=name)
+            product_category = ProductCategory(name=name, discount=discount)
             product_category.save()
             return CreateProductCategoryMutation(product_category=product_category, errors=None)
         except DjangoValidationError as e:
             for field, error_messages in e.message_dict.items():
                 for error_message in error_messages:
                     errors.append(ErrorType(code="VALIDATION_ERROR",
-                                  message=error_message, field=field))
+                                            message=error_message, field=field))
             return CreateProductCategoryMutation(product_category=None, errors=errors)
         except IntegrityError as e:
             errors.append(ErrorType(code="INTEGRITY_ERROR",
-                          message="Product category with this name already exists", field="name"))
+                                    message="Product category with this name already exists", field="name"))
             return CreateProductCategoryMutation(product_category=None, errors=errors)
         except Exception as e:
             errors.append(ErrorType(code="UNKNOWN_ERROR", message=str(e)))
@@ -521,44 +522,48 @@ class DeleteProductCategoryMutation(graphene.Mutation):
 class UpdateProductCategoryMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
-        name = graphene.String(required=True)
+        name = graphene.String(required=False)
+        discount = graphene.Int(required=False)
 
     product_category = graphene.Field(ProductCategoryType)
     errors = graphene.List(ErrorType)
 
-    def mutate(self, info, id, name):
+    def mutate(self, info, id, name=None, discount=None):
         errors = []
 
-        if not name:
+        if not name and not discount:
             errors.append(ErrorType(code="INVALID_INPUT",
-                                    message="Name is required", field="name"))
+                                    message="At least one field should be filled", field="name/discount"))
 
         if errors:
             return UpdateProductCategoryMutation(product_category=None, errors=errors)
 
         try:
             product_category = ProductCategory.objects.get(pk=id)
-            product_category.name = name
+            if name is not None:
+                product_category.name = name
+            if discount is not None:
+                product_category.discount = discount
             product_category.full_clean()
             product_category.save()
             return UpdateProductCategoryMutation(product_category=product_category, errors=None)
         except ProductCategory.DoesNotExist:
             errors.append(ErrorType(code="NOT_FOUND",
-                          message='Product category not found', field='id'))
+                                    message='Product category not found', field='id'))
             return UpdateProductCategoryMutation(product_category=None, errors=errors)
         except DjangoValidationError as e:
             for field, error_messages in e.message_dict.items():
                 for error_message in error_messages:
                     errors.append(ErrorType(code="VALIDATION_ERROR",
-                                  message=error_message, field=field))
+                                            message=error_message, field=field))
             return UpdateProductCategoryMutation(product_category=None, errors=errors)
         except IntegrityError as e:
             errors.append(ErrorType(code="INTEGRITY_ERROR",
-                          message="Product category with this name already exists", field="name"))
+                                    message="Product category with this name already exists", field="name"))
             return UpdateProductCategoryMutation(product_category=None, errors=errors)
         except Exception as e:
             errors.append(ErrorType(code="UNKNOWN_ERROR",
-                          message=str(e)))
+                                    message=str(e)))
             return UpdateProductCategoryMutation(product_category=None, errors=errors)
 
 
@@ -570,6 +575,7 @@ class CreateProductMutation(graphene.Mutation):
         car_model = graphene.ID(required=False)
         # ProductCategory arguments
         category_name = graphene.String(required=False)
+        discount = graphene.Int(required=False)
         # CarModel arguments
         model_name = graphene.String(required=False)
         model_year = graphene.Int(required=False)
@@ -586,7 +592,7 @@ class CreateProductMutation(graphene.Mutation):
     product = graphene.Field(ProductType)
     errors = graphene.List(ErrorType)
 
-    def mutate(self, info, item_name, image_link, price, item_stock, item_type, category=None, car_model=None, category_name=None, model_name=None, model_year=None, model_type=None, type_name=None, model_make=None, make_name=None, item_description=None):
+    def mutate(self, info, item_name, image_link, price, item_stock, item_type, category=None, car_model=None, category_name=None, discount=None, model_name=None, model_year=None, model_type=None, type_name=None, model_make=None, make_name=None, item_description=None):
         errors = []
 
         if not image_link:
@@ -605,52 +611,60 @@ class CreateProductMutation(graphene.Mutation):
             errors.append(ErrorType(code="INVALID_INPUT",
                           message="Type is required", field="item_type"))
 
+        if not category and not category_name and not discount:
+            errors.append(ErrorType(code="INVALID_INPUT",
+                          message="Category or category_name and discount is required", field="category, category_name, discount"))
+
+        if not car_model and not model_name and not model_year and not model_type and not type_name and not model_make and not make_name:
+            errors.append(ErrorType(code="INVALID_INPUT",
+                          message="Car model or model_name, model_year, model_type, type_name, model_make, make_name is required", field="car_model, model_name, model_year, model_type, type_name, model_make, make_name"))
         if errors:
             return CreateProductMutation(product=None, errors=errors)
 
         try:
-            if category:
-                product_category = ProductCategory.objects.get(pk=category)
-            else:
-                product_category_mutation_result = CreateProductCategoryMutation.mutate(
-                    self, info, name=category_name)
-                if product_category_mutation_result.errors:
-                    errors.extend(product_category_mutation_result.errors)
-                    errors.append(ErrorType(code="PRODUCT_CATEGORY_CREATION_ERROR",
-                                  message="Product category creation failed. Please try again"))
+            with transaction.atomic():
+                if category:
+                    product_category = ProductCategory.objects.get(pk=category)
+                else:
+                    product_category_mutation_result = CreateProductCategoryMutation.mutate(
+                        self, info, name=category_name, discount=discount)
+                    if product_category_mutation_result.errors:
+                        errors.extend(product_category_mutation_result.errors)
+                        errors.append(ErrorType(code="PRODUCT_CATEGORY_CREATION_ERROR",
+                                                message="Product category creation failed. Please try again"))
+                        return CreateProductMutation(product=None, errors=errors)
+                    product_categoryType = product_category_mutation_result.product_category
+                    product_category = ProductCategory.objects.get(
+                        pk=product_categoryType.id)
+
+                if car_model:
+                    car_model = CarModel.objects.get(pk=car_model)
+                else:
+                    car_model_mutation_result = CreateCarModelMutation.mutate(
+                        self, info, name=model_name, year=model_year, type=model_type, make=model_make, type_name=type_name, make_name=make_name)
+                    if car_model_mutation_result.errors:
+                        errors.extend(car_model_mutation_result.errors)
+                        errors.append(ErrorType(code="CAR_MODEL_CREATION_ERROR",
+                                                message="Car model creation failed. Please try again"))
+                        return CreateProductMutation(product=None, errors=errors)
+                    car_modelType = car_model_mutation_result.car_model
+                    car_model = CarModel.objects.get(pk=car_modelType.id)
+
+                inventory_item_mutation_result = CreateInventoryItemMutation.mutate(
+                    self, info, name=item_name, description=item_description, stock=item_stock, type=item_type)
+                if inventory_item_mutation_result.errors:
+                    errors.extend(inventory_item_mutation_result.errors)
+                    errors.append(ErrorType(code="INVENTORY_ITEM_CREATION_ERROR",
+                                            message="Inventory item creation failed. Please try again"))
                     return CreateProductMutation(product=None, errors=errors)
-                product_categoryType = product_category_mutation_result.product_category
-                product_category = ProductCategory.objects.get(
-                    pk=product_categoryType.id)
+                inventory_itemType = inventory_item_mutation_result.inventory_item
+                inventory_item = InventoryItem.objects.get(
+                    pk=inventory_itemType.id)
 
-            if car_model:
-                car_model = CarModel.objects.get(pk=car_model)
-            else:
-                car_model_mutation_result = CreateCarModelMutation.mutate(
-                    self, info, name=model_name, year=model_year, type=model_type, make=model_make, type_name=type_name, make_name=make_name)
-                if car_model_mutation_result.errors:
-                    errors.extend(car_model_mutation_result.errors)
-                    errors.append(ErrorType(code="CAR_MODEL_CREATION_ERROR",
-                                  message="Car model creation failed. Please try again"))
-                    return CreateProductMutation(product=None, errors=errors)
-                car_modelType = car_model_mutation_result.car_model
-                car_model = CarModel.objects.get(pk=car_modelType.id)
-
-            inventory_item_mutation_result = CreateInventoryItemMutation.mutate(
-                self, info, name=item_name, description=item_description, stock=item_stock, type=item_type)
-            if inventory_item_mutation_result.errors:
-                errors.extend(inventory_item_mutation_result.errors)
-                errors.append(ErrorType(code="INVENTORY_ITEM_CREATION_ERROR",
-                              message="Inventory item creation failed. Please try again"))
-                return CreateProductMutation(product=None, errors=errors)
-            inventory_itemType = inventory_item_mutation_result.inventory_item
-            inventory_item = InventoryItem.objects.get(
-                pk=inventory_itemType.id)
-
-            product = Product(image_link=image_link, price=price, category=product_category,
-                              car_model=car_model, inventory_item=inventory_item)
-            product.save()
-            return CreateProductMutation(product=product, errors=None)
+                product = Product(image_link=image_link, price=price, category=product_category,
+                                  car_model=car_model, inventory_item=inventory_item)
+                product.save()
+                return CreateProductMutation(product=product, errors=None)
         except ProductCategory.DoesNotExist:
             errors.append(ErrorType(code="NOT_FOUND",
                           message='Product category not found', field='category'))
@@ -728,6 +742,7 @@ class UpdateProductMutation(graphene.Mutation):
         car_model = graphene.ID(required=False)
         # ProductCategory arguments
         category_name = graphene.String(required=False)
+        discount = graphene.Int(required=False)
         # CarModel arguments
         model_name = graphene.String(required=False)
         model_year = graphene.Int(required=False)
@@ -744,64 +759,65 @@ class UpdateProductMutation(graphene.Mutation):
     product = graphene.Field(ProductType)
     errors = graphene.List(ErrorType)
 
-    def mutate(self, info, id, image_link=None, price=None, category=None, car_model=None, category_name=None, model_name=None, model_year=None, model_type=None, type_name=None, model_make=None, make_name=None, item_name=None, item_description=None, item_stock=None, item_type=None):
+    def mutate(self, info, id, image_link=None, price=None, category=None, car_model=None, category_name=None, discount=None, model_name=None, model_year=None, model_type=None, type_name=None, model_make=None, make_name=None, item_name=None, item_description=None, item_stock=None, item_type=None):
         errors = []
 
-        if not image_link and not price and not category and not car_model and not category_name and not model_name and not model_year and not model_type and not type_name and not model_make and not make_name and not item_name and not item_description and not item_stock and not item_type:
+        if not image_link and not price and not category and not car_model and not category_name and not discount and not model_name and not model_year and not model_type and not type_name and not model_make and not make_name and not item_name and not item_description and not item_stock and not item_type:
             errors.append(ErrorType(code="INVALID_INPUT",
-                          message="At least one field is required", field="image_link, price, category, car_model, category_name, model_name, model_year, model_type, type_name, model_make, make_name, item_name, item_description, item_stock, item_type"))
+                          message="At least one field is required", field="image_link, price, category, car_model, category_name, discount, model_name, model_year, model_type, type_name, model_make, make_name, item_name, item_description, item_stock, item_type"))
 
         if errors:
             return UpdateProductMutation(product=None, errors=errors)
 
         try:
-            product = Product.objects.get(pk=id)
+            with transaction.atomic():
+                product = Product.objects.get(pk=id)
 
-            if image_link:
-                product.image_link = image_link
-            if price:
-                product.price = price
-            if category:
-                product_category = ProductCategory.objects.get(pk=category)
-                product.category = product_category
-            elif category_name:
-                product_category_mutation_result = CreateProductCategoryMutation.mutate(
-                    self, info, name=category_name)
-                if product_category_mutation_result.errors:
-                    errors.extend(product_category_mutation_result.errors)
-                    errors.append(ErrorType(code="PRODUCT_CATEGORY_CREATION_ERROR",
-                                  message="Product category creation failed. Please try again"))
-                    return UpdateProductMutation(product=None, errors=errors)
-                product_categoryType = product_category_mutation_result.product_category
-                product_category = ProductCategory.objects.get(
-                    pk=product_categoryType.id)
-                product.category = product_category
-            if car_model:
-                car_model = CarModel.objects.get(pk=car_model)
-                product.car_model = car_model
-            elif model_name:
-                car_model_mutation_result = CreateCarModelMutation.mutate(
-                    self, info, name=model_name, year=model_year, type=model_type, make=model_make, type_name=type_name, make_name=make_name)
-                if car_model_mutation_result.errors:
-                    errors.extend(car_model_mutation_result.errors)
-                    errors.append(ErrorType(code="CAR_MODEL_CREATION_ERROR",
-                                  message="Car model creation failed. Please try again"))
-                    return UpdateProductMutation(product=None, errors=errors)
-                car_modelType = car_model_mutation_result.car_model
-                car_model = CarModel.objects.get(pk=car_modelType.id)
-                product.car_model = car_model
-            if item_name or item_description or item_stock or item_type:
-                inventory_item_mutation_result = UpdateInventoryItemMutation.mutate(
-                    self, info, id=product.inventory_item.id, name=item_name, description=item_description, stock=item_stock, type=item_type)
-                if inventory_item_mutation_result.errors:
-                    errors.extend(inventory_item_mutation_result.errors)
-                    errors.append(ErrorType(code="INVENTORY_ITEM_UPDATE_ERROR",
-                                  message="Inventory item update failed. Please try again"))
-                    return UpdateProductMutation(product=None, errors=errors)
+                if image_link:
+                    product.image_link = image_link
+                if price:
+                    product.price = price
+                if category:
+                    product_category = ProductCategory.objects.get(pk=category)
+                    product.category = product_category
+                elif category_name or discount:
+                    product_category_mutation_result = CreateProductCategoryMutation.mutate(
+                        self, info, name=category_name, discount=discount)
+                    if product_category_mutation_result.errors:
+                        errors.extend(product_category_mutation_result.errors)
+                        errors.append(ErrorType(code="PRODUCT_CATEGORY_CREATION_ERROR",
+                                                message="Product category creation failed. Please try again"))
+                        return UpdateProductMutation(product=None, errors=errors)
+                    product_categoryType = product_category_mutation_result.product_category
+                    product_category = ProductCategory.objects.get(
+                        pk=product_categoryType.id)
+                    product.category = product_category
+                if car_model:
+                    car_model = CarModel.objects.get(pk=car_model)
+                    product.car_model = car_model
+                elif model_name or model_year or model_type or type_name or model_make or make_name:
+                    car_model_mutation_result = CreateCarModelMutation.mutate(
+                        self, info, name=model_name, year=model_year, type=model_type, make=model_make, type_name=type_name, make_name=make_name)
+                    if car_model_mutation_result.errors:
+                        errors.extend(car_model_mutation_result.errors)
+                        errors.append(ErrorType(code="CAR_MODEL_CREATION_ERROR",
+                                                message="Car model creation failed. Please try again"))
+                        return UpdateProductMutation(product=None, errors=errors)
+                    car_modelType = car_model_mutation_result.car_model
+                    car_model = CarModel.objects.get(pk=car_modelType.id)
+                    product.car_model = car_model
+                if item_name or item_description or item_stock or item_type:
+                    inventory_item_mutation_result = UpdateInventoryItemMutation.mutate(
+                        self, info, id=product.inventory_item.id, name=item_name, description=item_description, stock=item_stock, type=item_type)
+                    if inventory_item_mutation_result.errors:
+                        errors.extend(inventory_item_mutation_result.errors)
+                        errors.append(ErrorType(code="INVENTORY_ITEM_UPDATE_ERROR",
+                                                message="Inventory item update failed. Please try again"))
+                        return UpdateProductMutation(product=None, errors=errors)
 
-            product.full_clean()
-            product.save()
-            return UpdateProductMutation(product=product, errors=None)
+                product.full_clean()
+                product.save()
+                return UpdateProductMutation(product=product, errors=None)
         except Product.DoesNotExist:
             errors.append(ErrorType(code="NOT_FOUND",
                           message='Product not found', field='id'))

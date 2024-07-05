@@ -38,6 +38,13 @@ class CarModel(models.Model):
 class ProductCategory(models.Model):
     name = models.CharField(max_length=50, unique=True,
                             blank=False, null=False)
+    discount = models.IntegerField(
+        validators=[
+            MinValueValidator(0),
+            MaxValueValidator(100)
+        ],
+        default=0
+    )
 
     def __str__(self):
         return self.name
@@ -47,7 +54,9 @@ class Product(models.Model):
     image_link = models.URLField(blank=False, null=False)
     price = models.IntegerField(
         blank=False, null=False, validators=[MinValueValidator(0)])
-    category = models.ForeignKey(ProductCategory, on_delete=models.PROTECT)
-    car_model = models.ForeignKey(CarModel, on_delete=models.PROTECT)
+    category = models.ForeignKey(
+        ProductCategory, on_delete=models.PROTECT, null=False, blank=False)
+    car_model = models.ForeignKey(
+        CarModel, on_delete=models.PROTECT, null=False, blank=False)
     inventory_item = models.OneToOneField(
-        InventoryItem, on_delete=models.CASCADE, null=False)
+        InventoryItem, on_delete=models.CASCADE, null=False, blank=False)
