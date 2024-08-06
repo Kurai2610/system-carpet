@@ -1,4 +1,4 @@
-# system-carpet
+# SystemCarpet
 
 ## Instalación
 
@@ -74,3 +74,54 @@ cp .env.example .env
 python manage.py makemigrations
 python manage.py migrate
 ```
+
+## API GraphQL
+
+La API GraphQL está disponible en `/graphql/` y puedes explorarla usando GraphiQL.
+
+### Consultas
+
+#### Direcciones
+
+##### `localities`
+
+Retorna todas las localidades.
+
+**Datos que retorna**
+
+- `id`: id de la localidad.
+- `name`: nombre de la localidad.
+
+**Ejemplo de consulta:**
+
+```graphql
+query {
+  localities{
+    id
+    name
+  }
+}
+```
+
+##### `locality`
+
+Retorna una localidad especifica.
+
+**Datos que retorna**
+
+- `id`: id de la localidad.
+- `name`: nombre de la localidad.
+
+**Datos que recibe**
+
+- `id`: id de la localidad a consultar.
+
+**Ejemplo de consulta:**
+
+```graphql
+query {
+  locality(id:1){
+    id
+    name
+  }
+}

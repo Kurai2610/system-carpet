@@ -3,9 +3,3 @@ class ValidationError(Exception):
         self.message = message
         self.field = field
         super().__init__(message)
-
-
-class DatabaseError(Exception):
-    def __init__(self, message):
-        self.message = message
-        super().__init__(message)
