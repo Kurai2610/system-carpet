@@ -1,9 +1,7 @@
 import graphene
 from graphene_django import DjangoObjectType
 from django.db import IntegrityError
-from django.core.exceptions import ValidationError as DjangoValidationError
-# ? Revisar si esto va a ser necesario
-from core.errors import ValidationError as CustomValidationError
+from django.core.exceptions import ValidationError
 from core.types import ErrorType
 from core.utils import normalize_name
 from addresses.models import Locality, Neighborhood, Address
@@ -44,20 +42,17 @@ class CreateLocalityMutation(graphene.Mutation):
         if errors:
             return CreateLocalityMutation(locality=None, errors=errors)
 
-        
         try:
             normalized_name = normalize_name(name=name)
             locality = Locality(name=normalized_name)
             locality.save()
             return CreateLocalityMutation(locality=locality, errors=None)
-        except DjangoValidationError as e:
+        except ValidationError as e:
             for field, error_messages in e.message_dict.items():
                 for error_message in error_messages:
                     errors.append(ErrorType(code="VALIDATION_ERROR",
                                             message=error_message, field=field))
             return CreateLocalityMutation(locality=None, errors=errors)
-        except CustomValidationError as e:
-            errors.append(ErrorType(code="VALIDATION_ERROR.",message=e.message, field=e.field))
         except IntegrityError:
             errors.append(ErrorType(code="DATABASE_ERROR",
                                     message="Locality already exists", field="name"))
@@ -108,7 +103,7 @@ class UpdateLocalityMutation(graphene.Mutation):
             errors.append(ErrorType(code="NOT_FOUND",
                                     message="Locality not found", field="id"))
             return UpdateLocalityMutation(locality=None, errors=errors)
-        except DjangoValidationError as e:
+        except ValidationError as e:
             for field, error_messages in e.message_dict.items():
                 for error_message in error_messages:
                     errors.append(ErrorType(code="VALIDATION_ERROR",
@@ -154,7 +149,7 @@ class CreateNeighborhoodMutation(graphene.Mutation):
             errors.append(ErrorType(code="NOT_FOUND",
                                     message="Locality not found", field="locality_id"))
             return CreateNeighborhoodMutation(neighborhood=None, errors=errors)
-        except DjangoValidationError as e:
+        except ValidationError as e:
             for field, error_messages in e.message_dict.items():
                 for error_message in error_messages:
                     errors.append(ErrorType(code="VALIDATION_ERROR",
@@ -221,7 +216,7 @@ class UpdateNeighborhoodMutation(graphene.Mutation):
             errors.append(ErrorType(code="NOT_FOUND",
                                     message="Locality not found", field="locality"))
             return UpdateNeighborhoodMutation(neighborhood=None, errors=errors)
-        except DjangoValidationError as e:
+        except ValidationError as e:
             for field, error_messages in e.message_dict.items():
                 for error_message in error_messages:
                     errors.append(ErrorType(code="VALIDATION_ERROR",
@@ -267,7 +262,7 @@ class CreateAddressMutation(graphene.Mutation):
             errors.append(ErrorType(code="NOT_FOUND",
                                     message="Neighborhood not found", field="neighborhood_id"))
             return CreateAddressMutation(address=None, errors=errors)
-        except DjangoValidationError as e:
+        except ValidationError as e:
             for field, error_messages in e.message_dict.items():
                 for error_message in error_messages:
                     errors.append(ErrorType(code="VALIDATION_ERROR",
@@ -334,7 +329,7 @@ class UpdateAddressMutation(graphene.Mutation):
             errors.append(ErrorType(code="NOT_FOUND",
                                     message="Neighborhood not found", field="neighborhood"))
             return UpdateAddressMutation(address=None, errors=errors)
-        except DjangoValidationError as e:
+        except ValidationError as e:
             for field, error_messages in e.message_dict.items():
                 for error_message in error_messages:
                     errors.append(ErrorType(code="VALIDATION_ERROR",
