@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from .types import (
     LocalityType,
     NeighborhoodType,
-    AddressType,
+    AddressType
 )
 from .models import (
     Locality,

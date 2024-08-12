@@ -1,122 +1,78 @@
 import graphene
-from graphene_django import DjangoObjectType
+from graphql import GraphQLError
+from graphene_django.filter import DjangoFilterConnectionField
 from django.db import IntegrityError
-from django.core.exceptions import ValidationError as DjangoValidationError
-import re
-from core.errors import ValidationError as CustomValidationError, DatabaseError
-from core.types import ErrorType
-from inventories.models import InventoryItem
-
-
-class InventoryItemType(DjangoObjectType):
-    status = graphene.String(description='Status of the inventory item')
-    type = graphene.String(description='Type of the inventory item')
-
-    class Meta:
-        model = InventoryItem
-        fields = ('id', 'name', 'description', 'stock',
-                  'type', 'created_at', 'updated_at', 'status')
-
-    def resolve_status(self, info):
-        return self.status
-
-    def resolve_type(self, info):
-        return self.get_type_display()
+from django.core.exceptions import ValidationError
+from .types import InventoryItemType
+from .models import InventoryItem
 
 
 class CreateInventoryItemMutation(graphene.Mutation):
     class Arguments:
         name = graphene.String(required=True)
-        description = graphene.String(required=False)
+        description = graphene.String()
         stock = graphene.Int(required=True)
         type = graphene.String(required=True)
 
     inventory_item = graphene.Field(InventoryItemType)
-    errors = graphene.List(ErrorType)
 
     def mutate(self, info, name, stock, type, description=None):
-        errors = []
 
         if not name:
-            errors.append(ErrorType(code="INVALID_INPUT",
-                          message='Name is required', field='name'))
+            raise GraphQLError("Name is required")
 
         if not stock:
-            if stock != 0:
-                errors.append(ErrorType(code="INVALID_INPUT",
-                              message='Stock is required', field='stock'))
+            raise GraphQLError("Stock is required")
 
         if not type:
-            errors.append(ErrorType(code="INVALID_INPUT",
-                          message='Type is required', field='type'))
-
-        if errors:
-            return CreateInventoryItemMutation(inventory_item=None, errors=errors)
+            raise GraphQLError("type is required")
 
         try:
             inventory_item = InventoryItem(
                 name=name, description=description, stock=stock, type=type)
             inventory_item.save()
-            return CreateInventoryItemMutation(inventory_item=inventory_item, errors=None)
-        except DjangoValidationError as e:
-            for field, error_messages in e.message_dict.items():
-                for error_message in error_messages:
-                    errors.append(ErrorType(code="VALIDATION_ERROR",
-                                  message=error_message, field=field))
-                    return CreateInventoryItemMutation(inventory_item=None, errors=errors)
-        except IntegrityError as e:
-            field_name_match = re.search(
-                r'detail: Key \((\w+)\)=', str(e.__cause__))
-            if field_name_match:
-                field_name = field_name_match.group(1)
-                errors.append(ErrorType(code="DATABASE_ERROR",
-                              message=f'Duplicate value for {field_name}.', field=field_name))
-            else:
-                errors.append(ErrorType(code="DATABASE_ERROR",
-                              message='An error occurred while saving the data.', field='non_field_errors'))
-            return CreateInventoryItemMutation(inventory_item=None, errors=errors)
+            return CreateInventoryItemMutation(inventory_item=inventory_item)
+        except ValidationError as e:
+            raise GraphQLError(e)
+        except IntegrityError:
+            raise GraphQLError("Inventory item already exists")
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR",
-                          message=str(e)))
-            return CreateInventoryItemMutation(inventory_item=None, errors=errors)
+            raise GraphQLError(f"Unknown Error: {str(e)}")
 
 
 class DeleteInventoryItemMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
 
-    message = graphene.String()
-    errors = graphene.List(ErrorType)
+    success = graphene.Boolean()
 
     def mutate(self, info, id):
-        errors = []
+
         try:
             inventory_item = InventoryItem.objects.get(pk=id)
             inventory_item.delete()
-            return DeleteInventoryItemMutation(message='Item deleted successfully', errors=None)
+            return DeleteInventoryItemMutation(success=True)
         except InventoryItem.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                          message='Item not found', field='id'))
-            return DeleteInventoryItemMutation(message=None, errors=errors)
+            raise GraphQLError("Item not found")
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR",
-                          message=str(e)))
-            return DeleteInventoryItemMutation(message=None, errors=errors)
+            raise GraphQLError(f"Unknown Error: {str(e)}")
 
 
 class UpdateInventoryItemMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
-        name = graphene.String(required=False)
-        description = graphene.String(required=False)
-        stock = graphene.Int(required=False)
-        type = graphene.String(required=False)
+        name = graphene.String()
+        description = graphene.String()
+        stock = graphene.Int()
+        type = graphene.String()
 
     inventory_item = graphene.Field(InventoryItemType)
-    errors = graphene.List(ErrorType)
 
     def mutate(self, info, id, name=None, description=None, stock=None, type=None):
-        errors = []
+
+        if not name and not description and stock is None and not type:
+            raise GraphQLError("At least one field is required")
+
         try:
             inventory_item = InventoryItem.objects.get(pk=id)
             if name:
@@ -127,47 +83,28 @@ class UpdateInventoryItemMutation(graphene.Mutation):
                 if stock >= 0:
                     inventory_item.stock = stock
                 else:
-                    errors.append(ErrorType(code="INVALID_INPUT",
-                                            message='Stock must be a non-negative value', field='stock'))
+                    raise GraphQLError("Stock must be a positive integer")
             if type:
                 inventory_item.type = type
 
-            inventory_item.full_clean()
             inventory_item.save()
             return UpdateInventoryItemMutation(inventory_item=inventory_item)
         except InventoryItem.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                          message='Item not found', field='id'))
-            return UpdateInventoryItemMutation(inventory_item=None, errors=errors)
-        except DjangoValidationError as e:
-            for field, error_messages in e.message_dict.items():
-                for error_message in error_messages:
-                    errors.append(ErrorType(code="VALIDATION_ERROR",
-                                  message=error_message, field=field))
-                    return UpdateInventoryItemMutation(inventory_item=None, errors=errors)
-        except IntegrityError as e:
-            field_name_match = re.search(
-                r'detail: Key \((\w+)\)=', str(e.__cause__))
-            if field_name_match:
-                field_name = field_name_match.group(1)
-                errors.append(ErrorType(code="DATABASE_ERROR",
-                              message=f'Duplicate value for {field_name}.', field=field_name))
-            else:
-                errors.append(ErrorType(code="DATABASE_ERROR",
-                              message='An error occurred while saving the data.', field='non_field_errors'))
-            return UpdateInventoryItemMutation(inventory_item=None, errors=errors)
+            raise GraphQLError("Item not found")
+        except IntegrityError:
+            raise GraphQLError("Inventory item already exists")
+        except ValidationError as e:
+            raise GraphQLError(e)
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR",
-                          message=str(e)))
-            return UpdateInventoryItemMutation(inventory_item=None, errors=errors)
+            raise GraphQLError(f"Unknown Error: {str(e)}")
 
 
 class Query(graphene.ObjectType):
-    inventory_items = graphene.List(InventoryItemType)
+    inventory_items = DjangoFilterConnectionField(InventoryItemType)
     inventory_item = graphene.Field(
-        InventoryItemType, id=graphene.ID(required=True))
+        InventoryItemType, id=graphene.ID())
 
-    def resolve_inventory_items(self, info):
+    def resolve_inventory_items(self, info, **kwargs):
         return InventoryItem.objects.all()
 
     def resolve_inventory_item(self, info, id):
