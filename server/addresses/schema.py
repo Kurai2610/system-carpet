@@ -1,28 +1,18 @@
 import graphene
-from graphene_django import DjangoObjectType
+from graphql import GraphQLError
+from graphene_django.filter import DjangoFilterConnectionField
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
-from core.types import ErrorType
-from core.utils import normalize_name
-from addresses.models import Locality, Neighborhood, Address
-
-
-class LocalityType(DjangoObjectType):
-    class Meta:
-        model = Locality
-        fields = ("id", "name")
-
-
-class NeighborhoodType(DjangoObjectType):
-    class Meta:
-        model = Neighborhood
-        fields = ("id", "name", "locality")
-
-
-class AddressType(DjangoObjectType):
-    class Meta:
-        model = Address
-        fields = ("id", "details", "neighborhood")
+from .types import (
+    LocalityType,
+    NeighborhoodType,
+    AddressType,
+)
+from .models import (
+    Locality,
+    Neighborhood,
+    Address
+)
 
 
 class CreateLocalityMutation(graphene.Mutation):
@@ -30,58 +20,43 @@ class CreateLocalityMutation(graphene.Mutation):
         name = graphene.String(required=True)
 
     locality = graphene.Field(LocalityType)
-    errors = graphene.List(ErrorType)
 
     def mutate(self, info, name):
-        errors = []
 
         if not name:
-            errors.append(ErrorType(code="INVALID_INPUT",
-                                    message="Name is required", field="name"))
-
-        if errors:
-            return CreateLocalityMutation(locality=None, errors=errors)
+            raise GraphQLError("Name is required")
 
         try:
-            normalized_name = normalize_name(name=name)
-            locality = Locality(name=normalized_name)
+            locality = Locality(name=name)
             locality.save()
-            return CreateLocalityMutation(locality=locality, errors=None)
+            return CreateLocalityMutation(locality=locality)
         except ValidationError as e:
-            for field, error_messages in e.message_dict.items():
-                for error_message in error_messages:
-                    errors.append(ErrorType(code="VALIDATION_ERROR",
-                                            message=error_message, field=field))
-            return CreateLocalityMutation(locality=None, errors=errors)
+            raise GraphQLError(e)
         except IntegrityError:
-            errors.append(ErrorType(code="DATABASE_ERROR",
-                                    message="Locality already exists", field="name"))
-            return CreateLocalityMutation(locality=None, errors=errors)
+            raise GraphQLError("Locality already exists")
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR", message=str(e)))
-            return CreateLocalityMutation(locality=None, errors=errors)
+            raise GraphQLError(f"Unknown Error: {str(e)}")
 
 
 class DeleteLocalityMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
 
-    errors = graphene.List(ErrorType)
-    message = graphene.String()
+    success = graphene.Boolean()
 
     def mutate(self, info, id):
-        errors = []
+
+        if not id:
+            raise GraphQLError("ID is required")
+
         try:
             locality = Locality.objects.get(pk=id)
             locality.delete()
-            return DeleteLocalityMutation(message="Locality deleted", errors=None)
+            return DeleteLocalityMutation(success=True)
         except Locality.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                                    message="Locality not found", field="id"))
-            return DeleteLocalityMutation(message=None, errors=errors)
+            raise GraphQLError("Locality not found")
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR", message=str(e)))
-            return DeleteLocalityMutation(message=None, errors=errors)
+            raise GraphQLError(f"Unknown Error: {str(e)}")
 
 
 class UpdateLocalityMutation(graphene.Mutation):
@@ -90,281 +65,218 @@ class UpdateLocalityMutation(graphene.Mutation):
         name = graphene.String()
 
     locality = graphene.Field(LocalityType)
-    errors = graphene.List(ErrorType)
 
     def mutate(self, info, id, name):
-        errors = []
+
         try:
+
+            if not name:
+                raise GraphQLError("Name is required")
+
             locality = Locality.objects.get(pk=id)
             locality.name = name
             locality.save()
-            return UpdateLocalityMutation(locality=locality, errors=None)
+            return UpdateLocalityMutation(locality=locality)
         except Locality.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                                    message="Locality not found", field="id"))
-            return UpdateLocalityMutation(locality=None, errors=errors)
+            raise GraphQLError("Locality not found")
         except ValidationError as e:
-            for field, error_messages in e.message_dict.items():
-                for error_message in error_messages:
-                    errors.append(ErrorType(code="VALIDATION_ERROR",
-                                            message=error_message, field=field))
-            return UpdateLocalityMutation(locality=None, errors=errors)
+            raise GraphQLError(e)
         except IntegrityError:
-            errors.append(ErrorType(code="DATABASE_ERROR",
-                                    message="Locality already exists", field="name"))
-            return UpdateLocalityMutation(locality=None, errors=errors)
+            raise GraphQLError("Locality already exists")
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR", message=str(e)))
-            return UpdateLocalityMutation(locality=None, errors=errors)
+            raise GraphQLError(f"Unknown Error: {str(e)}")
 
 
 class CreateNeighborhoodMutation(graphene.Mutation):
     class Arguments:
-        name = graphene.String()
+        name = graphene.String(required=True)
         locality_id = graphene.ID()
 
     neighborhood = graphene.Field(NeighborhoodType)
-    errors = graphene.List(ErrorType)
 
     def mutate(self, info, name, locality_id):
-        errors = []
 
         if not name:
-            errors.append(ErrorType(code="INVALID_INPUT",
-                                    message="Name is required", field="name"))
+            raise GraphQLError("Name is required")
 
         if not locality_id:
-            errors.append(ErrorType(code="INVALID_INPUT",
-                                    message="Locality is required", field="locality_id"))
-
-        if errors:
-            return CreateNeighborhoodMutation(neighborhood=None, errors=errors)
+            raise GraphQLError("Locality is required")
 
         try:
             locality = Locality.objects.get(pk=locality_id)
             neighborhood = Neighborhood(name=name, locality=locality)
             neighborhood.save()
-            return CreateNeighborhoodMutation(neighborhood=neighborhood, errors=None)
+            return CreateNeighborhoodMutation(neighborhood=neighborhood)
         except Locality.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                                    message="Locality not found", field="locality_id"))
-            return CreateNeighborhoodMutation(neighborhood=None, errors=errors)
+            raise GraphQLError("Locality not found")
         except ValidationError as e:
-            for field, error_messages in e.message_dict.items():
-                for error_message in error_messages:
-                    errors.append(ErrorType(code="VALIDATION_ERROR",
-                                            message=error_message, field=field))
-            return CreateNeighborhoodMutation(neighborhood=None, errors=errors)
+            raise GraphQLError(e)
         except IntegrityError:
-            errors.append(ErrorType(code="DATABASE_ERROR",
-                                    message="Neighborhood already exists", field="name"))
-            return CreateNeighborhoodMutation(neighborhood=None, errors=errors)
+            raise GraphQLError("Neighborhood already exists")
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR", message=str(e)))
-            return CreateNeighborhoodMutation(neighborhood=None, errors=errors)
+            raise GraphQLError(f"Unknown Error: {str(e)}")
 
 
 class DeleteNeighborhoodMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
 
-    message = graphene.String()
-    errors = graphene.List(ErrorType)
+    success = graphene.Boolean()
 
     def mutate(self, info, id):
-        errors = []
+
+        if not id:
+            raise GraphQLError("ID is required")
 
         try:
             neighborhood = Neighborhood.objects.get(pk=id)
             neighborhood.delete()
-            return DeleteNeighborhoodMutation(message="Neighborhood deleted", errors=None)
+            return DeleteNeighborhoodMutation(success=True)
         except Neighborhood.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                                    message="Neighborhood not found", field="id"))
-            return DeleteNeighborhoodMutation(message=None, errors=errors)
+            raise GraphQLError("Neighborhood not found")
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR", message=str(e)))
-            return DeleteNeighborhoodMutation(message=None, errors=errors)
+            raise GraphQLError(f"Unknown Error: {str(e)}")
 
 
 class UpdateNeighborhoodMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
         name = graphene.String()
-        locality = graphene.ID()
+        locality_id = graphene.ID()
 
     neighborhood = graphene.Field(NeighborhoodType)
-    errors = graphene.List(ErrorType)
 
-    def mutate(self, info, id, name=None, locality=None):
-        errors = []
+    def mutate(self, info, id, name=None, locality_id=None):
+
+        if not name and not locality_id:
+            raise GraphQLError("Name or Locality is required")
 
         try:
             neighborhood = Neighborhood.objects.get(pk=id)
             if name is not None:
                 neighborhood.name = name
-            if locality is not None:
-                locality_obj = Locality.objects.get(pk=locality)
+            if locality_id is not None:
+                locality_obj = Locality.objects.get(pk=locality_id)
                 neighborhood.locality = locality_obj
             neighborhood.save()
-            return UpdateNeighborhoodMutation(neighborhood=neighborhood, errors=None)
+            return UpdateNeighborhoodMutation(neighborhood=neighborhood)
         except Neighborhood.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                                    message="Neighborhood not found", field="id"))
-            return UpdateNeighborhoodMutation(neighborhood=None, errors=errors)
+            raise GraphQLError("Neighborhood not found")
         except Locality.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                                    message="Locality not found", field="locality"))
-            return UpdateNeighborhoodMutation(neighborhood=None, errors=errors)
+            raise GraphQLError("Locality not found")
         except ValidationError as e:
-            for field, error_messages in e.message_dict.items():
-                for error_message in error_messages:
-                    errors.append(ErrorType(code="VALIDATION_ERROR",
-                                            message=error_message, field=field))
-            return UpdateNeighborhoodMutation(neighborhood=None, errors=errors)
+            raise GraphQLError(e)
         except IntegrityError:
-            errors.append(ErrorType(code="DATABASE_ERROR",
-                                    message="Neighborhood already exists", field="name"))
-            return UpdateNeighborhoodMutation(neighborhood=None, errors=errors)
+            raise GraphQLError("Neighborhood already exists")
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR", message=str(e)))
-            return UpdateNeighborhoodMutation(neighborhood=None, errors=errors)
+            raise GraphQLError(f"Unknown Error: {str(e)}")
 
 
 class CreateAddressMutation(graphene.Mutation):
     class Arguments:
-        details = graphene.String()
-        neighborhood_id = graphene.ID()
+        details = graphene.String(required=True)
+        neighborhood_id = graphene.ID(required=True)
 
     address = graphene.Field(AddressType)
-    errors = graphene.List(ErrorType)
 
     def mutate(self, info, details, neighborhood_id):
-        errors = []
 
         if not details:
-            errors.append(ErrorType(code="INVALID_INPUT",
-                                    message="Details is required", field="details"))
-
+            raise GraphQLError("Details is required")
         if not neighborhood_id:
-            errors.append(ErrorType(code="INVALID_INPUT",
-                                    message="Neighborhood is required", field="neighborhood_id"))
-
-        if errors:
-            return CreateAddressMutation(address=None, errors=errors)
+            raise GraphQLError("Neighborhood is required")
 
         try:
             neighborhood = Neighborhood.objects.get(pk=neighborhood_id)
             address = Address(details=details, neighborhood=neighborhood)
             address.save()
-            return CreateAddressMutation(address=address, errors=None)
+            return CreateAddressMutation(address=address)
         except Neighborhood.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                                    message="Neighborhood not found", field="neighborhood_id"))
-            return CreateAddressMutation(address=None, errors=errors)
+            raise GraphQLError("Neighborhood not found")
         except ValidationError as e:
-            for field, error_messages in e.message_dict.items():
-                for error_message in error_messages:
-                    errors.append(ErrorType(code="VALIDATION_ERROR",
-                                            message=error_message, field=field))
-            return CreateAddressMutation(address=None, errors=errors)
+            raise GraphQLError(e)
         except IntegrityError:
-            errors.append(ErrorType(code="DATABASE_ERROR",
-                                    message="Address already exists", field="details"))
-            return CreateAddressMutation(address=None, errors=errors)
+            raise GraphQLError("Address already exists")
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR", message=str(e)))
-            return CreateAddressMutation(address=None, errors=errors)
+            raise GraphQLError(f"Unknown Error: {str(e)}")
 
 
 class DeleteAddressMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
 
-    message = graphene.String()
-    errors = graphene.List(ErrorType)
+    success = graphene.Boolean()
 
     def mutate(self, info, id):
-        errors = []
+
+        if not id:
+            raise GraphQLError("ID is required")
 
         try:
             address = Address.objects.get(pk=id)
             address.delete()
-            return DeleteAddressMutation(message="Address deleted", errors=None)
+            return DeleteAddressMutation(success=True)
         except Address.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                                    message="Address not found", field="id"))
-            return DeleteAddressMutation(message=None, errors=errors)
+            raise GraphQLError("Address not found")
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR", message=str(e)))
-            return DeleteAddressMutation(message=None, errors=errors)
+            raise GraphQLError(f"Unknown Error: {str(e)}")
 
 
 class UpdateAddressMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
         details = graphene.String()
-        neighborhood = graphene.ID()
+        neighborhood_id = graphene.ID()
 
     address = graphene.Field(AddressType)
-    errors = graphene.List(ErrorType)
 
-    def mutate(self, info, id, details=None, neighborhood=None):
-        errors = []
+    def mutate(self, info, id, details=None, neighborhood_id=None):
+
+        if not details and not neighborhood_id:
+            raise GraphQLError("Details or Neighborhood is required")
 
         try:
             address = Address.objects.get(pk=id)
             if details is not None:
                 address.details = details
-            if neighborhood is not None:
-                neighborhood_obj = Neighborhood.objects.get(pk=neighborhood)
+            if neighborhood_id is not None:
+                neighborhood_obj = Neighborhood.objects.get(pk=neighborhood_id)
                 address.neighborhood = neighborhood_obj
             address.save()
-            return UpdateAddressMutation(address=address, errors=None)
+            return UpdateAddressMutation(address=address)
         except Address.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                                    message="Address not found", field="id"))
-            return UpdateAddressMutation(address=None, errors=errors)
+            raise GraphQLError("Address not found")
         except Neighborhood.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                                    message="Neighborhood not found", field="neighborhood"))
-            return UpdateAddressMutation(address=None, errors=errors)
+            raise GraphQLError("Neighborhood not found")
         except ValidationError as e:
-            for field, error_messages in e.message_dict.items():
-                for error_message in error_messages:
-                    errors.append(ErrorType(code="VALIDATION_ERROR",
-                                            message=error_message, field=field))
-            return UpdateAddressMutation(address=None, errors=errors)
+            raise GraphQLError(e)
         except IntegrityError:
-            errors.append(ErrorType(code="DATABASE_ERROR",
-                                    message="Address already exists", field="details"))
-            return UpdateAddressMutation(address=None, errors=errors)
+            raise GraphQLError("Address already exists")
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR", message=str(e)))
-            return UpdateAddressMutation(address=None, errors=errors)
+            raise GraphQLError(f"Unknown Error: {str(e)}")
 
 
 class Query(graphene.ObjectType):
-    localities = graphene.List(LocalityType)
+    localities = DjangoFilterConnectionField(LocalityType)
     locality = graphene.Field(LocalityType, id=graphene.ID())
-    neighborhoods = graphene.List(NeighborhoodType)
+    neighborhoods = DjangoFilterConnectionField(NeighborhoodType)
     neighborhood = graphene.Field(NeighborhoodType, id=graphene.ID())
-    addresses = graphene.List(AddressType)
+    addresses = DjangoFilterConnectionField(AddressType)
     address = graphene.Field(AddressType, id=graphene.ID())
 
-    def resolve_localities(self, info):
+    def resolve_localities(self, info, **kwargs):
         return Locality.objects.all()
 
     def resolve_locality(self, info, id):
         return Locality.objects.get(pk=id)
 
-    def resolve_neighborhoods(self, info):
+    def resolve_neighborhoods(self, info, **kwargs):
         return Neighborhood.objects.all()
 
     def resolve_neighborhood(self, info, id):
         return Neighborhood.objects.get(pk=id)
 
-    def resolve_addresses(self, info):
+    def resolve_addresses(self, info, **kwargs):
         return Address.objects.all()
 
     def resolve_address(self, info, id):

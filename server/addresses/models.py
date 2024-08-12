@@ -1,6 +1,5 @@
-from django.db import models, IntegrityError
-from django.core.exceptions import ValidationError
-from core.utils import normalize_name
+from django.db import models
+from core.utils import normalize_name, normalize_text
 
 
 class Locality(models.Model):
@@ -8,12 +7,6 @@ class Locality(models.Model):
 
     def clean(self):
         normalized_name = normalize_name(self.name)
-        if Locality.objects.filter(name=normalized_name).exists():
-            raise ValidationError(
-                'A locality with this name already exists.',
-                code='duplicate_name',
-                params={'name': normalized_name}
-            )
         self.name = normalized_name
 
     def save(self, *args, **kwargs):
@@ -30,12 +23,6 @@ class Neighborhood(models.Model):
 
     def clean(self):
         normalized_name = normalize_name(self.name)
-        if Neighborhood.objects.filter(name=normalized_name).exists():
-            raise ValidationError(
-                'A neighborhood with this name already exists.',
-                code='duplicate_name',
-                params={'name': normalized_name}
-            )
         self.name = normalized_name
 
     def save(self, *args, **kwargs):
@@ -50,3 +37,10 @@ class Address(models.Model):
     details = models.CharField(max_length=60, null=False)
     neighborhood = models.ForeignKey(
         "Neighborhood", on_delete=models.PROTECT)
+
+    def clean(self):
+        self.details = normalize_text(self.details)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super(Address, self).save(*args, **kwargs)
