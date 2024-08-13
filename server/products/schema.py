@@ -1,7 +1,6 @@
 import graphene
 from graphql import GraphQLError
 from graphene_django.filter import DjangoFilterConnectionField
-from graphene_django import DjangoObjectType
 from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
 from inventories.models import InventoryItem
@@ -42,7 +41,7 @@ class CreateCarTypeMutation(graphene.Mutation):
             car_type.save()
             return CreateCarTypeMutation(car_type=car_type)
         except ValidationError as e:
-            raise GraphQLError(e.message)
+            raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError("Car type with this name already exists")
         except Exception as e:
@@ -90,7 +89,7 @@ class UpdateCarTypeMutation(graphene.Mutation):
         except CarType.DoesNotExist:
             raise GraphQLError('Car type not found')
         except ValidationError as e:
-            raise GraphQLError(e.message)
+            raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError("Car type with this name already exists")
         except Exception as e:
@@ -113,7 +112,7 @@ class CreateCarMakeMutation(graphene.Mutation):
             car_make.save()
             return CreateCarMakeMutation(car_make=car_make)
         except ValidationError as e:
-            raise GraphQLError(e.message)
+            raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError("Car make with this name already exists")
         except Exception as e:
@@ -161,7 +160,7 @@ class UpdateCarMakeMutation(graphene.Mutation):
         except CarMake.DoesNotExist:
             raise GraphQLError('Car make not found')
         except ValidationError as e:
-            raise GraphQLError(e.message)
+            raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError("Car make with this name already exists")
         except Exception as e:
@@ -193,7 +192,7 @@ class CreateCarModelMutation(graphene.Mutation):
         except CarMake.DoesNotExist:
             raise GraphQLError('Car make not found')
         except ValidationError as e:
-            raise GraphQLError(e.message)
+            raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError(
                 "Car model with this name and year already exists")
@@ -257,7 +256,7 @@ class UpdateCarModelMutation(graphene.Mutation):
         except CarMake.DoesNotExist:
             raise GraphQLError('Car make not found')
         except ValidationError as e:
-            raise GraphQLError(e.message)
+            raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError(
                 "Car model with this name and year already exists")
@@ -279,7 +278,7 @@ class CreateProductCategoryMutation(graphene.Mutation):
             product_category.save()
             return CreateProductCategoryMutation(product_category=product_category)
         except ValidationError as e:
-            raise GraphQLError(e.message)
+            raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError(
                 "Product category with this name already exists")
@@ -329,7 +328,7 @@ class UpdateProductCategoryMutation(graphene.Mutation):
         except ProductCategory.DoesNotExist:
             raise GraphQLError('Product category not found')
         except ValidationError as e:
-            raise GraphQLError(e.message)
+            raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError(
                 "Product category with this name already exists")
@@ -373,7 +372,7 @@ class CreateProductMutation(graphene.Mutation):
         except CarModel.DoesNotExist:
             raise GraphQLError('Car model not found')
         except ValidationError as e:
-            raise GraphQLError(e.message)
+            raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError(
                 "Product with this inventory item already exists")
@@ -410,18 +409,8 @@ class UpdateProductMutation(graphene.Mutation):
         id = graphene.ID(required=True)
         image_link = graphene.String(required=False)
         price = graphene.Int(required=False)
-        category = graphene.ID(required=False)
-        car_model = graphene.ID(required=False)
-        # ProductCategory arguments
-        category_name = graphene.String(required=False)
-        discount = graphene.Int(required=False)
-        # CarModel arguments
-        model_name = graphene.String(required=False)
-        model_year = graphene.Int(required=False)
-        model_type = graphene.ID(required=False)
-        type_name = graphene.String(required=False)
-        model_make = graphene.ID(required=False)
-        make_name = graphene.String(required=False)
+        category_id = graphene.ID(required=False)
+        car_model_id = graphene.ID(required=False)
         # InventoryItem arguments
         item_name = graphene.String(required=False)
         item_description = graphene.String(required=False)
@@ -429,17 +418,11 @@ class UpdateProductMutation(graphene.Mutation):
         item_type = graphene.String(required=False)
 
     product = graphene.Field(ProductType)
-    errors = graphene.List(ErrorType)
 
-    def mutate(self, info, id, image_link=None, price=None, category=None, car_model=None, category_name=None, discount=None, model_name=None, model_year=None, model_type=None, type_name=None, model_make=None, make_name=None, item_name=None, item_description=None, item_stock=None, item_type=None):
-        errors = []
+    def mutate(self, info, id, image_link=None, price=None, category_id=None, car_model_id=None, item_name=None, item_description=None, item_stock=None, item_type=None):
 
-        if not image_link and not price and not category and not car_model and not category_name and not discount and not model_name and not model_year and not model_type and not type_name and not model_make and not make_name and not item_name and not item_description and not item_stock and not item_type:
-            errors.append(ErrorType(code="INVALID_INPUT",
-                          message="At least one field is required", field="image_link, price, category, car_model, category_name, discount, model_name, model_year, model_type, type_name, model_make, make_name, item_name, item_description, item_stock, item_type"))
-
-        if errors:
-            return UpdateProductMutation(product=None, errors=errors)
+        if not image_link and not price and not category_id and not car_model_id and not item_name and not item_description and not item_stock and not item_type:
+            raise GraphQLError("At least one field should be filled")
 
         try:
             with transaction.atomic():
@@ -449,119 +432,69 @@ class UpdateProductMutation(graphene.Mutation):
                     product.image_link = image_link
                 if price:
                     product.price = price
-                if category:
-                    product_category = ProductCategory.objects.get(pk=category)
-                    product.category = product_category
-                elif category_name or discount:
-                    product_category_mutation_result = CreateProductCategoryMutation.mutate(
-                        self, info, name=category_name, discount=discount)
-                    if product_category_mutation_result.errors:
-                        errors.extend(product_category_mutation_result.errors)
-                        errors.append(ErrorType(code="PRODUCT_CATEGORY_CREATION_ERROR",
-                                                message="Product category creation failed. Please try again"))
-                        return UpdateProductMutation(product=None, errors=errors)
-                    product_categoryType = product_category_mutation_result.product_category
-                    product_category = ProductCategory.objects.get(
-                        pk=product_categoryType.id)
-                    product.category = product_category
-                if car_model:
-                    car_model = CarModel.objects.get(pk=car_model)
-                    product.car_model = car_model
-                elif model_name or model_year or model_type or type_name or model_make or make_name:
-                    car_model_mutation_result = CreateCarModelMutation.mutate(
-                        self, info, name=model_name, year=model_year, type=model_type, make=model_make, type_name=type_name, make_name=make_name)
-                    if car_model_mutation_result.errors:
-                        errors.extend(car_model_mutation_result.errors)
-                        errors.append(ErrorType(code="CAR_MODEL_CREATION_ERROR",
-                                                message="Car model creation failed. Please try again"))
-                        return UpdateProductMutation(product=None, errors=errors)
-                    car_modelType = car_model_mutation_result.car_model
-                    car_model = CarModel.objects.get(pk=car_modelType.id)
-                    product.car_model = car_model
+                if category_id:
+                    product.category = ProductCategory.objects.get(
+                        pk=category_id)
+                if car_model_id:
+                    product.car_model = CarModel.objects.get(pk=car_model_id)
                 if item_name or item_description or item_stock or item_type:
-                    inventory_item_mutation_result = UpdateInventoryItemMutation.mutate(
+                    UpdateInventoryItemMutation.mutate(
                         self, info, id=product.inventory_item.id, name=item_name, description=item_description, stock=item_stock, type=item_type)
-                    if inventory_item_mutation_result.errors:
-                        errors.extend(inventory_item_mutation_result.errors)
-                        errors.append(ErrorType(code="INVENTORY_ITEM_UPDATE_ERROR",
-                                                message="Inventory item update failed. Please try again"))
-                        return UpdateProductMutation(product=None, errors=errors)
 
-                product.full_clean()
                 product.save()
-                return UpdateProductMutation(product=product, errors=None)
+                return UpdateProductMutation(product=product)
         except Product.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                          message='Product not found', field='id'))
-            return UpdateProductMutation(product=None, errors=errors)
+            raise GraphQLError('Product not found')
         except ProductCategory.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                          message='Product category not found', field='category'))
-            return UpdateProductMutation(product=None, errors=errors)
+            raise GraphQLError('Product category not found')
         except CarModel.DoesNotExist:
-            errors.append(ErrorType(code="NOT_FOUND",
-                          message='Car model not found', field='car_model'))
-            return UpdateProductMutation(product=None, errors=errors)
-        except DjangoValidationError as e:
-            for field, error_messages in e.message_dict.items():
-                for error_message in error_messages:
-                    errors.append(ErrorType(code="VALIDATION_ERROR",
-                                  message=error_message, field=field))
-            return UpdateProductMutation(product=None, errors=errors)
+            raise GraphQLError('Car model not found')
+        except ValidationError as e:
+            raise GraphQLError(e)
         except IntegrityError as e:
-            field_name_match = re.search(r'\((.*?)\)', str(e))
-            if field_name_match:
-                field_name = field_name_match.group(1)
-                errors.append(ErrorType(code="INTEGRITY_ERROR",
-                              message=f"Product with this {field_name} already exists", field=field_name))
-            else:
-                errors.append(ErrorType(code="INTEGRITY_ERROR",
-                              message="unknown integrity error"))
-            return UpdateProductMutation(product=None, errors=errors)
+            raise GraphQLError(f"Unknown Integrity error: {str(e)}")
         except Exception as e:
-            errors.append(ErrorType(code="UNKNOWN_ERROR",
-                          message=str(e)))
-            return UpdateProductMutation(product=None, errors=errors)
+            raise GraphQLError(f"Unknown error: {str(e)}")
 
 
 class Query(graphene.ObjectType):
-    car_types = graphene.List(CarTypeType)
+    car_types = DjangoFilterConnectionField(CarTypeType)
     car_type = graphene.Field(CarTypeType, id=graphene.ID(required=True))
-    car_makes = graphene.List(CarMakeType)
+    car_makes = DjangoFilterConnectionField(CarMakeType)
     car_make = graphene.Field(CarMakeType, id=graphene.ID(required=True))
-    car_models = graphene.List(CarModelType)
+    car_models = DjangoFilterConnectionField(CarModelType)
     car_model = graphene.Field(CarModelType, id=graphene.ID(required=True))
-    product_categories = graphene.List(ProductCategoryType)
+    product_categories = DjangoFilterConnectionField(ProductCategoryType)
     product_category = graphene.Field(
         ProductCategoryType, id=graphene.ID(required=True))
-    products = graphene.List(ProductType)
+    products = DjangoFilterConnectionField(ProductType)
     product = graphene.Field(ProductType, id=graphene.ID(required=True))
 
-    def resolve_car_types(self, info):
+    def resolve_car_types(self, info, **kwargs):
         return CarType.objects.all()
 
     def resolve_car_type(self, info, id):
         return CarType.objects.get(pk=id)
 
-    def resolve_car_makes(self, info):
+    def resolve_car_makes(self, info, **kwargs):
         return CarMake.objects.all()
 
     def resolve_car_make(self, info, id):
         return CarMake.objects.get(pk=id)
 
-    def resolve_car_models(self, info):
+    def resolve_car_models(self, info, **kwargs):
         return CarModel.objects.all()
 
     def resolve_car_model(self, info, id):
         return CarModel.objects.get(pk=id)
 
-    def resolve_product_categories(self, info):
+    def resolve_product_categories(self, info, **kwargs):
         return ProductCategory.objects.all()
 
     def resolve_product_category(self, info, id):
         return ProductCategory.objects.get(pk=id)
 
-    def resolve_products(self, info):
+    def resolve_products(self, info, **kwargs):
         return Product.objects.all()
 
     def resolve_product(self, info, id):

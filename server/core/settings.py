@@ -39,11 +39,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "graphene_django",
+    'graphene_django_filter',
     'addresses',
-    'users',
+    # ! recuerda descomentar los esquemas de core, las configuraciones de más abajo y creo que ya
+    # 'users',
     'inventories',
     'products',
-    'supply_chains',
+    # 'supply_chains',
 ]
 
 MIDDLEWARE = [
@@ -132,7 +134,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = 'users.CustomUser'
+# ! AUTH_USER_MODEL = 'users.CustomUser'
 
 GRAPHENE = {
     "SCHEMA": "core.schema.schema",

@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 def normalize_name(name, min_length=2, max_length=50):
     name = name.strip()
 
-    name = re.sub(r'[^a-zA-Z\s\'\-]', '', name)
+    name = re.sub(r'[^a-zA-Z\s\'\-áéíóúÁÉÍÓÚ]', '', name)
 
     if not name:
         raise ValidationError(
@@ -16,7 +16,7 @@ def normalize_name(name, min_length=2, max_length=50):
     name_length = len(normalized_name)
     if name_length < min_length or name_length > max_length:
         raise ValidationError(
-            'The name must have between {min_length} and {max_length} characters. Current length: {name_length}')
+            f'The name must have between {min_length} and {max_length} characters. Current length: {name_length}')
 
     return normalized_name
 
