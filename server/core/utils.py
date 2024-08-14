@@ -34,8 +34,8 @@ def normalize_password(password, min_length=8, max_length=20):
 
     password_length = len(password)
     if password_length < min_length or password_length > max_length:
-        raise ValidationError(f'The password must have between {min_length} and {
-                              max_length} characters. Current length: {password_length}')
+        raise ValidationError(
+            f'The password must have between {min_length} and {max_length} characters. Current length: {password_length}')
 
     if not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$', password):
         raise ValidationError('The password is invalid.')
