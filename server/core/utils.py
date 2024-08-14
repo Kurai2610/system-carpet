@@ -1,3 +1,4 @@
+import base64
 import re
 from django.core.exceptions import ValidationError
 
@@ -40,3 +41,10 @@ def normalize_password(password, min_length=8, max_length=20):
         raise ValidationError('The password is invalid.')
 
     return password
+
+
+def decode_relay_id(global_id):
+    decoded_bytes = base64.b64decode(global_id)
+    decoded_str = decoded_bytes.decode('utf-8')
+    type_name, id_str = decoded_str.split(':')
+    return type_name, id_str

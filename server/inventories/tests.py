@@ -1,6 +1,7 @@
 from django.test import TestCase
 from graphene.test import Client
 from core.schema import schema
+from core.utils import decode_relay_id
 from .models import InventoryItem
 
 
@@ -43,7 +44,9 @@ class InventorySchemaTests(TestCase):
         self.assertEqual(item['stock'], variables['stock'])
         self.assertEqual(item['description'], variables['description'])
 
-        db_item = InventoryItem.objects.get(name=variables['name'])
+        _, item_id = decode_relay_id(item['id'])
+        db_item = InventoryItem.objects.get(id=item_id)
+        self.assertEqual(db_item.name, variables['name'])
         self.assertEqual(db_item.stock, variables['stock'])
         self.assertEqual(db_item.type, variables['type'])
         self.assertEqual(db_item.description, variables['description'])
