@@ -1,9 +1,11 @@
 from django.test import TestCase
 from graphene.test import Client
 from core.schema import schema
+from core.utils import decode_relay_id
 from .models import (
     Locality,
-    Neighborhood
+    Neighborhood,
+    Address
 )
 
 
@@ -36,6 +38,17 @@ class AddressSchemaTests(TestCase):
         response = self.client.execute(mutation, variables=variables)
         self.assertIsNone(response.get('errors'))
 
+        data = response.get('data')
+        address = data.get('createAddress').get('address')
+        self.assertEqual(address['details'], variables['details'])
+        _, neighborhood_id = decode_relay_id(address['neighborhood']['id'])
+        self.assertEqual(neighborhood_id,
+                         str(self.neighborhood.id))
+        _, address_id = decode_relay_id(address['id'])
+        db_address = Address.objects.get(id=address_id)
+        self.assertEqual(db_address.details, variables['details'])
+        self.assertEqual(db_address.neighborhood, self.neighborhood)
+
     def test_create_neighborhood_mutation(self):
         mutation = '''
         mutation CreateNeighborhood($name: String!, $localityId: ID!) {
@@ -57,6 +70,16 @@ class AddressSchemaTests(TestCase):
         }
         response = self.client.execute(mutation, variables=variables)
         self.assertIsNone(response.get('errors'))
+        data = response.get('data')
+        neighborhood = data.get('createNeighborhood').get('neighborhood')
+        self.assertEqual(neighborhood['name'], variables['name'])
+        _, locality_id = decode_relay_id(neighborhood['locality']['id'])
+        self.assertEqual(locality_id, str(self.locality.id))
+        _, neighborhood_id = decode_relay_id(neighborhood['id'])
+
+        db_neighborhood = Neighborhood.objects.get(id=neighborhood_id)
+        self.assertEqual(db_neighborhood.name, variables['name'])
+        self.assertEqual(db_neighborhood.locality, self.locality)
 
     def test_create_locality_mutation(self):
         mutation = '''
@@ -74,3 +97,10 @@ class AddressSchemaTests(TestCase):
         }
         response = self.client.execute(mutation, variables=variables)
         self.assertIsNone(response.get('errors'))
+        data = response.get('data')
+        locality = data.get('createLocality').get('locality')
+        self.assertEqual(locality['name'], variables['name'])
+        _, locality_id = decode_relay_id(locality['id'])
+
+        db_locality = Locality.objects.get(id=locality_id)
+        self.assertEqual(db_locality.name, variables['name'])
