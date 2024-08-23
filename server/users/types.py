@@ -21,5 +21,4 @@ class UserType(DjangoObjectType):
         exclude = ('password', 'is_superuser', 'is_staff',
                    'is_active', 'date_joined', 'last_login')
         interfaces = (relay.Node,)
-        fields = "__all__"
         filterset_class = UserFilter
