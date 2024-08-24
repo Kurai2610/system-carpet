@@ -2,6 +2,7 @@ aniso8601==9.0.1
 anytree==2.12.1
 asgiref==3.8.1
 Django==4.2.15
+django-cors-headers==4.4.0
 django-filter==21.1
 django-graphql-jwt==0.4.0
 graphene==3.3

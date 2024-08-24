@@ -24,12 +24,12 @@ class CreateUserMutation(graphene.Mutation):
         first_name = graphene.String(required=True)
         last_name = graphene.String(required=True)
         # Address arguments
-        details = graphene.String(required=False)
+        addres_details = graphene.String(required=False)
         neighborhood_id = graphene.ID(required=False)
 
     user = graphene.Field(UserType)
 
-    def mutate(self, info, email, phone, password, first_name, last_name, details=None, neighborhood_id=None):
+    def mutate(self, info, email, phone, password, first_name, last_name, addres_details=None, neighborhood_id=None):
         try:
             with transaction.atomic():
                 user = get_user_model().objects.create_user(
@@ -40,9 +40,9 @@ class CreateUserMutation(graphene.Mutation):
                     last_name=last_name
                 )
 
-                if details or neighborhood_id:
+                if addres_details or neighborhood_id:
                     address_mutation_result = CreateAddressMutation.mutate(
-                        self=self, info=info, details=details, neighborhood_id=neighborhood_id)
+                        self=self, info=info, details=addres_details, neighborhood_id=neighborhood_id)
                     if address_mutation_result.errors:
                         raise GraphQLError(
                             "An error occurred while creating the address. Please try again.")
@@ -94,14 +94,14 @@ class UpdateUserMutation(graphene.Mutation):
         first_name = graphene.String()
         last_name = graphene.String()
         # Address arguments
-        details = graphene.String()
+        addres_details = graphene.String()
         neighborhood_id = graphene.ID()
 
     user = graphene.Field(UserType)
 
-    def mutate(self, info, id, email=None, phone=None, first_name=None, last_name=None, details=None, neighborhood_id=None):
+    def mutate(self, info, id, email=None, phone=None, first_name=None, last_name=None, addres_details=None, neighborhood_id=None):
 
-        if not email and not phone and not first_name and not last_name and not details and not neighborhood_id:
+        if not email and not phone and not first_name and not last_name and not addres_details and not neighborhood_id:
             raise GraphQLError("No data to update.")
 
         try:
@@ -117,11 +117,11 @@ class UpdateUserMutation(graphene.Mutation):
                 if last_name:
                     user.last_name = last_name
 
-                if details or neighborhood_id:
+                if addres_details or neighborhood_id:
                     if user.address:
                         address_id = user.address.id
                         address_mutation_result = UpdateAddressMutation.mutate(
-                            self=self, info=info, id=address_id, details=details, neighborhood_id=neighborhood_id)
+                            self=self, info=info, id=address_id, details=addres_details, neighborhood_id=neighborhood_id)
                         if address_mutation_result.errors:
                             raise GraphQLError(
                                 "An error occurred while updating the address. Please try again.")
@@ -130,7 +130,7 @@ class UpdateUserMutation(graphene.Mutation):
                         user.address = address
                     else:
                         address_mutation_result = CreateAddressMutation.mutate(
-                            self=self, info=info, details=details, neighborhood_id=neighborhood_id)
+                            self=self, info=info, details=addres_details, neighborhood_id=neighborhood_id)
                         if address_mutation_result.errors:
                             raise GraphQLError(
                                 "An error occurred while creating the address. Please try again.")
