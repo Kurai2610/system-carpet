@@ -3,6 +3,7 @@ from graphql import GraphQLError
 from graphene_django.filter import DjangoFilterConnectionField
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
+from graphql_jwt.decorators import login_required, permission_required
 from .types import InventoryItemType
 from .models import InventoryItem
 
@@ -16,6 +17,8 @@ class CreateInventoryItemMutation(graphene.Mutation):
 
     inventory_item = graphene.Field(InventoryItemType)
 
+    @login_required
+    @permission_required("inventories.add_inventoryitem")
     def mutate(self, info, name, stock, type, description=None):
 
         if not name:
@@ -46,6 +49,8 @@ class DeleteInventoryItemMutation(graphene.Mutation):
 
     success = graphene.Boolean()
 
+    @login_required
+    @permission_required("inventories.delete_inventoryitem")
     def mutate(self, info, id):
 
         try:
@@ -68,6 +73,8 @@ class UpdateInventoryItemMutation(graphene.Mutation):
 
     inventory_item = graphene.Field(InventoryItemType)
 
+    @login_required
+    @permission_required("inventories.change_inventoryitem")
     def mutate(self, info, id, name=None, description=None, stock=None, type=None):
 
         if not name and not description and stock is None and not type:

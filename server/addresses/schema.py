@@ -3,6 +3,7 @@ from graphql import GraphQLError
 from graphene_django.filter import DjangoFilterConnectionField
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
+from graphql_jwt.decorators import login_required, permission_required
 from .types import (
     LocalityType,
     NeighborhoodType,
@@ -21,6 +22,8 @@ class CreateLocalityMutation(graphene.Mutation):
 
     locality = graphene.Field(LocalityType)
 
+    @login_required
+    @permission_required("addresses.add_locality")
     def mutate(self, info, name):
 
         if not name:
@@ -44,6 +47,8 @@ class DeleteLocalityMutation(graphene.Mutation):
 
     success = graphene.Boolean()
 
+    @login_required
+    @permission_required("addresses.delete_locality")
     def mutate(self, info, id):
 
         if not id:
@@ -66,6 +71,8 @@ class UpdateLocalityMutation(graphene.Mutation):
 
     locality = graphene.Field(LocalityType)
 
+    @login_required
+    @permission_required("addresses.change_locality")
     def mutate(self, info, id, name):
 
         try:
@@ -94,6 +101,8 @@ class CreateNeighborhoodMutation(graphene.Mutation):
 
     neighborhood = graphene.Field(NeighborhoodType)
 
+    @login_required
+    @permission_required("addresses.add_neighborhood")
     def mutate(self, info, name, locality_id):
 
         if not name:
@@ -123,6 +132,8 @@ class DeleteNeighborhoodMutation(graphene.Mutation):
 
     success = graphene.Boolean()
 
+    @login_required
+    @permission_required("addresses.delete_neighborhood")
     def mutate(self, info, id):
 
         if not id:
@@ -146,6 +157,8 @@ class UpdateNeighborhoodMutation(graphene.Mutation):
 
     neighborhood = graphene.Field(NeighborhoodType)
 
+    @login_required
+    @permission_required("addresses.change_neighborhood")
     def mutate(self, info, id, name=None, locality_id=None):
 
         if not name and not locality_id:
@@ -179,6 +192,8 @@ class CreateAddressMutation(graphene.Mutation):
 
     address = graphene.Field(AddressType)
 
+    @login_required
+    @permission_required("addresses.add_address")
     def mutate(self, info, details, neighborhood_id):
 
         if not details:
@@ -207,6 +222,8 @@ class DeleteAddressMutation(graphene.Mutation):
 
     success = graphene.Boolean()
 
+    @login_required
+    @permission_required("addresses.delete_address")
     def mutate(self, info, id):
 
         if not id:
@@ -230,6 +247,8 @@ class UpdateAddressMutation(graphene.Mutation):
 
     address = graphene.Field(AddressType)
 
+    @login_required
+    @permission_required("addresses.change_address")
     def mutate(self, info, id, details=None, neighborhood_id=None):
 
         if not details and not neighborhood_id:
@@ -264,21 +283,33 @@ class Query(graphene.ObjectType):
     addresses = DjangoFilterConnectionField(AddressType)
     address = graphene.Field(AddressType, id=graphene.ID())
 
+    @login_required
+    @permission_required("addresses.view_locality")
     def resolve_localities(self, info, **kwargs):
         return Locality.objects.all()
 
+    @login_required
+    @permission_required("addresses.view_locality")
     def resolve_locality(self, info, id):
         return Locality.objects.get(pk=id)
 
+    @login_required
+    @permission_required("addresses.view_neighborhood")
     def resolve_neighborhoods(self, info, **kwargs):
         return Neighborhood.objects.all()
 
+    @login_required
+    @permission_required("addresses.view_neighborhood")
     def resolve_neighborhood(self, info, id):
         return Neighborhood.objects.get(pk=id)
 
+    @login_required
+    @permission_required("addresses.view_address")
     def resolve_addresses(self, info, **kwargs):
         return Address.objects.all()
 
+    @login_required
+    @permission_required("addresses.view_address")
     def resolve_address(self, info, id):
         return Address.objects.get(pk=id)
 

@@ -1,6 +1,6 @@
+import datetime
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-import datetime
 from inventories.models import InventoryItem
 from core.utils import normalize_name, normalize_text
 

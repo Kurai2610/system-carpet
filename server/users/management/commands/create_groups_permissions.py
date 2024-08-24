@@ -32,7 +32,7 @@ class Command(BaseCommand):
             'Client': [
                 {
                     'app_label': 'addresses',
-                    'models': ['locality', 'neighborhood', 'address'],
+                    'models': ['address'],
                     'actions': ['add', 'change'],
                 },
             ],

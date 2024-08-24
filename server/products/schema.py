@@ -3,6 +3,7 @@ from graphql import GraphQLError
 from graphene_django.filter import DjangoFilterConnectionField
 from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
+from graphql_jwt.decorators import login_required, permission_required
 from inventories.models import InventoryItem
 from inventories.schema import (
     CreateInventoryItemMutation,
@@ -31,6 +32,8 @@ class CreateCarTypeMutation(graphene.Mutation):
 
     car_type = graphene.Field(CarTypeType)
 
+    @login_required
+    @permission_required('products.add_cartype')
     def mutate(self, info, name):
 
         if not name:
@@ -54,6 +57,8 @@ class DeleteCarTypeMutation(graphene.Mutation):
 
     success = graphene.Boolean()
 
+    @login_required
+    @permission_required('products.delete_cartype')
     def mutate(self, info, id):
 
         if not id:
@@ -76,6 +81,8 @@ class UpdateCarTypeMutation(graphene.Mutation):
 
     car_type = graphene.Field(CarTypeType)
 
+    @login_required
+    @permission_required('products.change_cartype')
     def mutate(self, info, id, name):
 
         if not name:
@@ -102,6 +109,8 @@ class CreateCarMakeMutation(graphene.Mutation):
 
     car_make = graphene.Field(CarMakeType)
 
+    @login_required
+    @permission_required('products.add_carmake')
     def mutate(self, info, name):
 
         if not name:
@@ -125,6 +134,8 @@ class DeleteCarMakeMutation(graphene.Mutation):
 
     success = graphene.Boolean()
 
+    @login_required
+    @permission_required('products.delete_carmake')
     def mutate(self, info, id):
 
         if not id:
@@ -147,6 +158,8 @@ class UpdateCarMakeMutation(graphene.Mutation):
 
     car_make = graphene.Field(CarMakeType)
 
+    @login_required
+    @permission_required('products.change_carmake')
     def mutate(self, info, id, name):
 
         if not name and not id:
@@ -176,6 +189,8 @@ class CreateCarModelMutation(graphene.Mutation):
 
     car_model = graphene.Field(CarModelType)
 
+    @login_required
+    @permission_required('products.add_carmodel')
     def mutate(self, info, name, year, type_id, make_id):
 
         try:
@@ -206,6 +221,8 @@ class DeleteCarModelMutation(graphene.Mutation):
 
     success = graphene.Boolean()
 
+    @login_required
+    @permission_required('products.delete_carmodel')
     def mutate(self, info, id):
 
         try:
@@ -228,6 +245,8 @@ class UpdateCarModelMutation(graphene.Mutation):
 
     car_model = graphene.Field(CarModelType)
 
+    @login_required
+    @permission_required('products.change_carmodel')
     def mutate(self, info, id, name=None, year=None, type_id=None, make_id=None):
 
         if not name and not year and not type_id and not make_id:
@@ -271,6 +290,8 @@ class CreateProductCategoryMutation(graphene.Mutation):
 
     product_category = graphene.Field(ProductCategoryType)
 
+    @login_required
+    @permission_required('products.add_productcategory')
     def mutate(self, info, name, discount=0):
 
         try:
@@ -292,6 +313,8 @@ class DeleteProductCategoryMutation(graphene.Mutation):
 
     success = graphene.Boolean()
 
+    @login_required
+    @permission_required('products.delete_productcategory')
     def mutate(self, info, id):
 
         try:
@@ -312,6 +335,8 @@ class UpdateProductCategoryMutation(graphene.Mutation):
 
     product_category = graphene.Field(ProductCategoryType)
 
+    @login_required
+    @permission_required('products.change_productcategory')
     def mutate(self, info, id, name=None, discount=None):
 
         if not name and not discount:
@@ -350,6 +375,8 @@ class CreateProductMutation(graphene.Mutation):
 
     product = graphene.Field(ProductType)
 
+    @login_required
+    @permission_required('products.add_product')
     def mutate(self, info, item_name, image_link, price, item_stock, item_type, category_id, car_model_id, item_description=None):
 
         try:
@@ -386,6 +413,8 @@ class DeleteProductMutation(graphene.Mutation):
 
     success = graphene.Boolean()
 
+    @login_required
+    @permission_required('products.delete_product')
     def mutate(self, info, id):
 
         try:
@@ -419,6 +448,8 @@ class UpdateProductMutation(graphene.Mutation):
 
     product = graphene.Field(ProductType)
 
+    @login_required
+    @permission_required('products.change_product')
     def mutate(self, info, id, image_link=None, price=None, category_id=None, car_model_id=None, item_name=None, item_description=None, item_stock=None, item_type=None):
 
         if not image_link and not price and not category_id and not car_model_id and not item_name and not item_description and not item_stock and not item_type:
