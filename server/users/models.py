@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin, Group
 from addresses.models import Address
 
 
@@ -29,6 +29,8 @@ class CustomUserManager(BaseUserManager):
         )
         user.is_staff = True
         user.is_superuser = True
+        admin_group = Group.objects.get(name='Admin')
+        user.groups.add(admin_group)
         user.save(using=self._db)
         return user
 

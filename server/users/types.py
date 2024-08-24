@@ -41,10 +41,10 @@ class NormalUserType(DjangoObjectType):
         filterset_class = UserFilter
 
 
-class UserType(NormalUserType):
+class UserType(DjangoObjectType):
 
     class Meta:
         model = get_user_model()
-        exclude = ('password',)
         interfaces = (relay.Node,)
+        fields = '__all__'
         filterset_class = UserFilter
