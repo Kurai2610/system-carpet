@@ -1,7 +1,24 @@
+import graphene
 from graphene import relay
 from django_filters import FilterSet
 from graphene_django import DjangoObjectType
+from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
+
+
+class GroupFilter(FilterSet):
+    class Meta:
+        model = Group
+        fields = {
+            "name": ("exact", "icontains"),
+        }
+
+
+class GroupType(DjangoObjectType):
+    class Meta:
+        model = Group
+        interfaces = (relay.Node,)
+        filterset_class = GroupFilter
 
 
 class UserFilter(FilterSet):
@@ -15,10 +32,19 @@ class UserFilter(FilterSet):
         }
 
 
-class UserType(DjangoObjectType):
+class NormalUserType(DjangoObjectType):
     class Meta:
         model = get_user_model()
         exclude = ('password', 'is_superuser', 'is_staff',
                    'is_active', 'date_joined', 'last_login')
+        interfaces = (relay.Node,)
+        filterset_class = UserFilter
+
+
+class UserType(NormalUserType):
+
+    class Meta:
+        model = get_user_model()
+        exclude = ('password',)
         interfaces = (relay.Node,)
         filterset_class = UserFilter

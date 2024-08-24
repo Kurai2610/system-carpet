@@ -5,9 +5,13 @@ from graphene_django.filter import DjangoFilterConnectionField
 from graphene_django import DjangoObjectType
 from django.db import IntegrityError, transaction
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from graphql_jwt.decorators import login_required
-from .types import UserType
+from .types import (
+    UserType,
+    NormalUserType
+)
 from addresses.models import Address
 from addresses.schema import (
     CreateAddressMutation,
@@ -16,7 +20,7 @@ from addresses.schema import (
 )
 
 
-class CreateUserMutation(graphene.Mutation):
+class RegisterUserMutation(graphene.Mutation):
     class Arguments:
         email = graphene.String(required=True)
         phone = graphene.String(required=True)
@@ -27,7 +31,7 @@ class CreateUserMutation(graphene.Mutation):
         addres_details = graphene.String(required=False)
         neighborhood_id = graphene.ID(required=False)
 
-    user = graphene.Field(UserType)
+    user = graphene.Field(NormalUserType)
 
     def mutate(self, info, email, phone, password, first_name, last_name, addres_details=None, neighborhood_id=None):
         try:
@@ -50,8 +54,62 @@ class CreateUserMutation(graphene.Mutation):
                     address = Address.objects.get(id=addressType.id)
                     user.address = address
 
+                client_group = Group.objects.get(name='Client')
+                user.groups.add(client_group)
+
                 user.save()
-                return CreateUserMutation(user=user)
+                return RegisterUserMutation(user=user)
+        except ValidationError as e:
+            raise GraphQLError(e)
+        except IntegrityError as e:
+            raise GraphQLError('An error occurred while saving the data.')
+        except Exception as e:
+            raise GraphQLError(str(e))
+
+
+class CreateUserAdminMutation(graphene.Mutation):
+    class Arguments:
+        email = graphene.String(required=True)
+        phone = graphene.String(required=True)
+        password = graphene.String(required=True)
+        first_name = graphene.String(required=True)
+        last_name = graphene.String(required=True)
+        # Address arguments
+        addres_details = graphene.String(required=False)
+        neighborhood_id = graphene.ID(required=False)
+
+    user = graphene.Field(UserType)
+
+    @login_required
+    def mutate(self, info, email, phone, password, first_name, last_name, addres_details=None, neighborhood_id=None):
+        user = info.context.user
+        if not user.has_perm('users.add_user'):
+            raise GraphQLError("You do not have permission to create a user.")
+        try:
+            with transaction.atomic():
+                user = get_user_model().objects.create_user(
+                    email=email,
+                    phone=phone,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name
+                )
+
+                if addres_details or neighborhood_id:
+                    address_mutation_result = CreateAddressMutation.mutate(
+                        self=self, info=info, details=addres_details, neighborhood_id=neighborhood_id)
+                    if address_mutation_result.errors:
+                        raise GraphQLError(
+                            "An error occurred while creating the address. Please try again.")
+                    addressType = address_mutation_result.address
+                    address = Address.objects.get(id=addressType.id)
+                    user.address = address
+
+                admin_group = Group.objects.get(name='Admin')
+                user.groups.add(admin_group)
+
+                user.save()
+                return CreateUserAdminMutation(user=user)
         except ValidationError as e:
             raise GraphQLError(e)
         except IntegrityError as e:
@@ -150,7 +208,7 @@ class UpdateUserMutation(graphene.Mutation):
 
 class Query(graphene.ObjectType):
     users = DjangoFilterConnectionField(UserType)
-    user = graphene.Field(UserType, id=graphene.ID(required=True))
+    user = graphene.Field(NormalUserType, id=graphene.ID(required=True))
     logged_in = graphene.Field(UserType)
 
     def resolve_users(self, info, **kwargs):
@@ -168,6 +226,7 @@ class Query(graphene.ObjectType):
 
 
 class Mutation(graphene.ObjectType):
-    create_user = CreateUserMutation.Field()
+    register_user = RegisterUserMutation.Field()
+    create_user_admin = CreateUserAdminMutation.Field()
     update_user = UpdateUserMutation.Field()
     delete_user = DeleteUserMutation.Field()
