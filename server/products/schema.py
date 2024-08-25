@@ -4,6 +4,7 @@ from graphene_django.filter import DjangoFilterConnectionField
 from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
 from graphql_jwt.decorators import login_required, permission_required
+from core.utils import normalize_name
 from inventories.models import InventoryItem
 from inventories.schema import (
     CreateInventoryItemMutation,
@@ -35,11 +36,8 @@ class CreateCarTypeMutation(graphene.Mutation):
     @login_required
     @permission_required('products.add_cartype')
     def mutate(self, info, name):
-
-        if not name:
-            raise GraphQLError("Name is required")
-
         try:
+            name = normalize_name(name, numbers=True)
             car_type = CarType(name=name)
             car_type.save()
             return CreateCarTypeMutation(car_type=car_type)
@@ -60,10 +58,6 @@ class DeleteCarTypeMutation(graphene.Mutation):
     @login_required
     @permission_required('products.delete_cartype')
     def mutate(self, info, id):
-
-        if not id:
-            raise GraphQLError("ID is required")
-
         try:
             car_type = CarType.objects.get(pk=id)
             car_type.delete()
@@ -84,11 +78,8 @@ class UpdateCarTypeMutation(graphene.Mutation):
     @login_required
     @permission_required('products.change_cartype')
     def mutate(self, info, id, name):
-
-        if not name:
-            raise GraphQLError("Name is required")
-
         try:
+            name = normalize_name(name, numbers=True)
             car_type = CarType.objects.get(pk=id)
             car_type.name = name
             car_type.save()
@@ -112,11 +103,8 @@ class CreateCarMakeMutation(graphene.Mutation):
     @login_required
     @permission_required('products.add_carmake')
     def mutate(self, info, name):
-
-        if not name:
-            raise GraphQLError("Name is required")
-
         try:
+            name = normalize_name(name, numbers=True)
             car_make = CarMake(name=name)
             car_make.save()
             return CreateCarMakeMutation(car_make=car_make)
@@ -137,10 +125,6 @@ class DeleteCarMakeMutation(graphene.Mutation):
     @login_required
     @permission_required('products.delete_carmake')
     def mutate(self, info, id):
-
-        if not id:
-            raise GraphQLError("ID is required")
-
         try:
             car_make = CarMake.objects.get(pk=id)
             car_make.delete()
@@ -161,11 +145,8 @@ class UpdateCarMakeMutation(graphene.Mutation):
     @login_required
     @permission_required('products.change_carmake')
     def mutate(self, info, id, name):
-
-        if not name and not id:
-            raise GraphQLError("Name and ID are required")
-
         try:
+            name = normalize_name(name, numbers=True)
             car_make = CarMake.objects.get(pk=id)
             car_make.name = name
             car_make.save()
@@ -197,6 +178,8 @@ class CreateCarModelMutation(graphene.Mutation):
             car_type = CarType.objects.get(pk=type_id)
 
             car_make = CarMake.objects.get(pk=make_id)
+
+            name = normalize_name(name, numbers=True)
 
             car_model = CarModel(name=name, year=year,
                                  type=car_type, make=car_make)
@@ -256,6 +239,7 @@ class UpdateCarModelMutation(graphene.Mutation):
             car_model = CarModel.objects.get(pk=id)
 
             if name:
+                name = normalize_name(name, numbers=True)
                 car_model.name = name
             if year:
                 car_model.year = year
@@ -295,6 +279,7 @@ class CreateProductCategoryMutation(graphene.Mutation):
     def mutate(self, info, name, discount=0):
 
         try:
+            name = normalize_name(name, numbers=True)
             product_category = ProductCategory(name=name, discount=discount)
             product_category.save()
             return CreateProductCategoryMutation(product_category=product_category)
@@ -345,6 +330,7 @@ class UpdateProductCategoryMutation(graphene.Mutation):
         try:
             product_category = ProductCategory.objects.get(pk=id)
             if name is not None:
+                name = normalize_name(name, numbers=True)
                 product_category.name = name
             if discount is not None:
                 product_category.discount = discount

@@ -1,6 +1,5 @@
 from django.db import models
 from django.core.validators import MinValueValidator
-from core.utils import normalize_name, normalize_text
 
 
 class InventoryItem(models.Model):
@@ -35,14 +34,6 @@ class InventoryItem(models.Model):
             return 'Low stock'
         else:
             return 'Available'
-
-    def clean(self):
-        self.name = normalize_name(self.name)
-        self.description = normalize_text(self.description)
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super(InventoryItem, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.name

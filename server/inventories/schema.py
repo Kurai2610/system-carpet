@@ -4,6 +4,7 @@ from graphene_django.filter import DjangoFilterConnectionField
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from graphql_jwt.decorators import login_required, permission_required
+from core.utils import normalize_name
 from .types import InventoryItemType
 from .models import InventoryItem
 
@@ -21,16 +22,10 @@ class CreateInventoryItemMutation(graphene.Mutation):
     @permission_required("inventories.add_inventoryitem")
     def mutate(self, info, name, stock, type, description=None):
 
-        if not name:
-            raise GraphQLError("Name is required")
-
-        if not stock:
-            raise GraphQLError("Stock is required")
-
-        if not type:
-            raise GraphQLError("type is required")
-
         try:
+            name = normalize_name(name)
+            if description:
+                description = description.strip()
             inventory_item = InventoryItem(
                 name=name, description=description, stock=stock, type=type)
             inventory_item.save()
@@ -52,7 +47,6 @@ class DeleteInventoryItemMutation(graphene.Mutation):
     @login_required
     @permission_required("inventories.delete_inventoryitem")
     def mutate(self, info, id):
-
         try:
             inventory_item = InventoryItem.objects.get(pk=id)
             inventory_item.delete()
@@ -83,8 +77,10 @@ class UpdateInventoryItemMutation(graphene.Mutation):
         try:
             inventory_item = InventoryItem.objects.get(pk=id)
             if name:
+                name = normalize_name(name)
                 inventory_item.name = name
             if description:
+                description = description.strip()
                 inventory_item.description = description
             if stock is not None:
                 if stock >= 0:
@@ -111,9 +107,13 @@ class Query(graphene.ObjectType):
     inventory_item = graphene.Field(
         InventoryItemType, id=graphene.ID())
 
+    @login_required
+    @permission_required("inventories.view_inventoryitem")
     def resolve_inventory_items(self, info, **kwargs):
         return InventoryItem.objects.all()
 
+    @login_required
+    @permission_required("inventories.view_inventoryitem")
     def resolve_inventory_item(self, info, id):
         return InventoryItem.objects.get(pk=id)
 
