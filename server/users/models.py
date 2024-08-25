@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin, Group
+from django.core.validators import EmailValidator, RegexValidator
 from addresses.models import Address
 
 
@@ -36,10 +37,12 @@ class CustomUserManager(BaseUserManager):
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(max_length=50, unique=True)
+    email = models.EmailField(max_length=50, unique=True, validators=[
+                              EmailValidator()])
     first_name = models.CharField(max_length=30, blank=False)
     last_name = models.CharField(max_length=30, blank=False)
-    phone = models.CharField(max_length=20, blank=False)
+    phone = models.CharField(max_length=20, blank=False, validators=[
+                             RegexValidator(r'^\+?1?\d{9,15}$')])
     address = models.OneToOneField(
         Address, on_delete=models.PROTECT, null=True, blank=True)
 

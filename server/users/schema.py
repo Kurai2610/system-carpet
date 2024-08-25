@@ -1,13 +1,12 @@
 import graphene
-import graphql_jwt
 from graphql import GraphQLError
 from graphene_django.filter import DjangoFilterConnectionField
-from graphene_django import DjangoObjectType
 from django.db import IntegrityError, transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from graphql_jwt.decorators import login_required, permission_required, superuser_required
+from core.utils import normalize_name, normalize_password
 from .types import (
     UserType,
     NormalUserType
@@ -15,8 +14,7 @@ from .types import (
 from addresses.models import Address
 from addresses.schema import (
     CreateAddressMutation,
-    UpdateAddressMutation,
-    DeleteAddressMutation
+    UpdateAddressMutation
 )
 
 
@@ -27,15 +25,15 @@ class RegisterUserMutation(graphene.Mutation):
         password = graphene.String(required=True)
         first_name = graphene.String(required=True)
         last_name = graphene.String(required=True)
-        # Address arguments
-        addres_details = graphene.String(required=False)
-        neighborhood_id = graphene.ID(required=False)
 
     user = graphene.Field(NormalUserType)
 
-    def mutate(self, info, email, phone, password, first_name, last_name, addres_details=None, neighborhood_id=None):
+    def mutate(self, info, email, phone, password, first_name, last_name):
         try:
             with transaction.atomic():
+                first_name = normalize_name(first_name)
+                last_name = normalize_name(last_name)
+                password = normalize_password(password)
                 user = get_user_model().objects.create_user(
                     email=email,
                     phone=phone,
@@ -44,27 +42,19 @@ class RegisterUserMutation(graphene.Mutation):
                     last_name=last_name
                 )
 
-                if addres_details or neighborhood_id:
-                    address_mutation_result = CreateAddressMutation.mutate(
-                        self=self, info=info, details=addres_details, neighborhood_id=neighborhood_id)
-                    if address_mutation_result.errors:
-                        raise GraphQLError(
-                            "An error occurred while creating the address. Please try again.")
-                    addressType = address_mutation_result.address
-                    address = Address.objects.get(id=addressType.id)
-                    user.address = address
-
                 client_group = Group.objects.get(name='Client')
                 user.groups.add(client_group)
 
                 user.save()
                 return RegisterUserMutation(user=user)
+        except Group.DoesNotExist:
+            raise GraphQLError("Client group does not exist.")
         except ValidationError as e:
             raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError('An error occurred while saving the data.')
         except Exception as e:
-            raise GraphQLError(str(e))
+            raise GraphQLError(f'Unknown error: {str(e)}')
 
 
 class CreateUserAdminMutation(graphene.Mutation):
@@ -74,20 +64,17 @@ class CreateUserAdminMutation(graphene.Mutation):
         password = graphene.String(required=True)
         first_name = graphene.String(required=True)
         last_name = graphene.String(required=True)
-        # Address arguments
-        addres_details = graphene.String(required=False)
-        neighborhood_id = graphene.ID(required=False)
 
     user = graphene.Field(UserType)
 
     @login_required
     @superuser_required
-    def mutate(self, info, email, phone, password, first_name, last_name, addres_details=None, neighborhood_id=None):
-        user = info.context.user
-        if not user.has_perm('users.add_user'):
-            raise GraphQLError("You do not have permission to create a user.")
+    def mutate(self, info, email, phone, password, first_name, last_name):
         try:
             with transaction.atomic():
+                first_name = normalize_name(first_name)
+                last_name = normalize_name(last_name)
+                password = normalize_password(password)
                 user = get_user_model().objects.create_superuser(
                     email=email,
                     phone=phone,
@@ -96,27 +83,19 @@ class CreateUserAdminMutation(graphene.Mutation):
                     last_name=last_name
                 )
 
-                if addres_details or neighborhood_id:
-                    address_mutation_result = CreateAddressMutation.mutate(
-                        self=self, info=info, details=addres_details, neighborhood_id=neighborhood_id)
-                    if address_mutation_result.errors:
-                        raise GraphQLError(
-                            "An error occurred while creating the address. Please try again.")
-                    addressType = address_mutation_result.address
-                    address = Address.objects.get(id=addressType.id)
-                    user.address = address
-
                 admin_group = Group.objects.get(name='Admin')
                 user.groups.add(admin_group)
 
                 user.save()
                 return CreateUserAdminMutation(user=user)
+        except Group.DoesNotExist:
+            raise GraphQLError("Admin group does not exist.")
         except ValidationError as e:
             raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError('An error occurred while saving the data.')
         except Exception as e:
-            raise GraphQLError(str(e))
+            raise GraphQLError(f'Unknown error: {str(e)}')
 
 
 class CreateStaffUserMutation(graphene.Mutation):
@@ -126,19 +105,18 @@ class CreateStaffUserMutation(graphene.Mutation):
         password = graphene.String(required=True)
         first_name = graphene.String(required=True)
         last_name = graphene.String(required=True)
-        # Address arguments
-        addres_details = graphene.String(required=False)
-        neighborhood_id = graphene.ID(required=False)
         group = graphene.String(required=True)
 
     user = graphene.Field(UserType)
 
     @login_required
-    @superuser_required
-    def mutate(self, info, email, phone, password, first_name, last_name, addres_details=None, neighborhood_id=None, group=None):
-
+    @permission_required('customuser.add_user')
+    def mutate(self, info, email, phone, password, first_name, last_name, group):
         try:
             with transaction.atomic():
+                first_name = normalize_name(first_name)
+                last_name = normalize_name(last_name)
+                password = normalize_password(password)
                 user = get_user_model().objects.create_user(
                     email=email,
                     phone=phone,
@@ -147,27 +125,19 @@ class CreateStaffUserMutation(graphene.Mutation):
                     last_name=last_name
                 )
 
-                if addres_details or neighborhood_id:
-                    address_mutation_result = CreateAddressMutation.mutate(
-                        self=self, info=info, details=addres_details, neighborhood_id=neighborhood_id)
-                    if address_mutation_result.errors:
-                        raise GraphQLError(
-                            "An error occurred while creating the address. Please try again.")
-                    addressType = address_mutation_result.address
-                    address = Address.objects.get(id=addressType.id)
-                    user.address = address
-
-                group = Group.objects.get(name=group)
-                user.groups.add(group)
+                user_group = Group.objects.get(name=group)
+                user.groups.add(user_group)
 
                 user.save()
                 return CreateUserAdminMutation(user=user)
+        except Group.DoesNotExist:
+            raise GraphQLError(f"{group} group does not exist.")
         except ValidationError as e:
             raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError('An error occurred while saving the data.')
         except Exception as e:
-            raise GraphQLError(str(e))
+            raise GraphQLError(f'Unknown error: {str(e)}')
 
 
 class DeleteUserMutation(graphene.Mutation):
@@ -181,6 +151,7 @@ class DeleteUserMutation(graphene.Mutation):
         user = info.context.user
         if not user.is_superuser and str(user.id) != id:
             raise GraphQLError("You can only delete your own account.")
+
         try:
             with transaction.atomic():
                 user.is_active = False
@@ -202,7 +173,7 @@ class UpdateUserMutation(graphene.Mutation):
         addres_details = graphene.String()
         neighborhood_id = graphene.ID()
 
-    user = graphene.Field(UserType)
+    user = graphene.Field(NormalUserType)
 
     @login_required
     def mutate(self, info, id, email=None, phone=None, first_name=None, last_name=None, addres_details=None, neighborhood_id=None):
@@ -223,8 +194,10 @@ class UpdateUserMutation(graphene.Mutation):
                 if phone:
                     user.phone = phone
                 if first_name:
+                    first_name = normalize_name(first_name)
                     user.first_name = first_name
                 if last_name:
+                    last_name = normalize_name(last_name)
                     user.last_name = last_name
 
                 if addres_details or neighborhood_id:
@@ -264,12 +237,12 @@ class Query(graphene.ObjectType):
     logged_in = graphene.Field(NormalUserType)
 
     @login_required
-    @superuser_required
+    @permission_required('customuser.view_user')
     def resolve_users(self, info, **kwargs):
         return get_user_model().objects.all()
 
     @login_required
-    @superuser_required
+    @permission_required('customuser.view_user')
     def resolve_user(self, info, id):
         return get_user_model().objects.get(id=id)
 
