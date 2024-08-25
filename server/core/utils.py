@@ -3,10 +3,16 @@ import re
 from django.core.exceptions import ValidationError
 
 
-def normalize_name(name, min_length=2, max_length=50):
+def normalize_name(name, min_length=2, max_length=50, numbers=False):
     name = name.strip()
 
-    name = re.sub(r'[^a-zA-Z\s\'\-áéíóúÁÉÍÓÚ]', '', name)
+    if not numbers:
+        pattern = r'[^a-zA-Z\s\'\-áéíóúÁÉÍÓÚ]'
+    else:
+        pattern = r'[^a-zA-Z0-9\s\'\-áéíóúÁÉÍÓÚ]'
+
+    if re.search(pattern, name):
+        raise ValidationError('The name contains invalid characters.')
 
     if not name:
         raise ValidationError(
@@ -22,10 +28,6 @@ def normalize_name(name, min_length=2, max_length=50):
     return normalized_name
 
 
-def normalize_text(value: str) -> str:
-    return value.strip() if isinstance(value, str) else value
-
-
 def normalize_password(password, min_length=8, max_length=20):
     password = password.strip()
 
@@ -37,8 +39,9 @@ def normalize_password(password, min_length=8, max_length=20):
         raise ValidationError(
             f'The password must have between {min_length} and {max_length} characters. Current length: {password_length}')
 
-    if not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$', password):
-        raise ValidationError('The password is invalid.')
+    if not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])(?=.*\d)[A-Za-z\d@$!%*?&#]{8,}$', password):
+        raise ValidationError(
+            'The password must contain at least one digit, one uppercase letter, one lowercase letter, one special character (@, $, !, %, *, ?, &, #), and be at least 8 characters long.')
 
     return password
 

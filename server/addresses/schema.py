@@ -4,6 +4,7 @@ from graphene_django.filter import DjangoFilterConnectionField
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from graphql_jwt.decorators import login_required, permission_required
+from core.utils import normalize_name
 from .types import (
     LocalityType,
     NeighborhoodType,
@@ -25,11 +26,8 @@ class CreateLocalityMutation(graphene.Mutation):
     @login_required
     @permission_required("addresses.add_locality")
     def mutate(self, info, name):
-
-        if not name:
-            raise GraphQLError("Name is required")
-
         try:
+            name = normalize_name(name)
             locality = Locality(name=name)
             locality.save()
             return CreateLocalityMutation(locality=locality)
@@ -50,10 +48,6 @@ class DeleteLocalityMutation(graphene.Mutation):
     @login_required
     @permission_required("addresses.delete_locality")
     def mutate(self, info, id):
-
-        if not id:
-            raise GraphQLError("ID is required")
-
         try:
             locality = Locality.objects.get(pk=id)
             locality.delete()
@@ -67,19 +61,15 @@ class DeleteLocalityMutation(graphene.Mutation):
 class UpdateLocalityMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
-        name = graphene.String()
+        name = graphene.String(required=True)
 
     locality = graphene.Field(LocalityType)
 
     @login_required
     @permission_required("addresses.change_locality")
     def mutate(self, info, id, name):
-
         try:
-
-            if not name:
-                raise GraphQLError("Name is required")
-
+            name = normalize_name(name)
             locality = Locality.objects.get(pk=id)
             locality.name = name
             locality.save()
@@ -97,21 +87,15 @@ class UpdateLocalityMutation(graphene.Mutation):
 class CreateNeighborhoodMutation(graphene.Mutation):
     class Arguments:
         name = graphene.String(required=True)
-        locality_id = graphene.ID()
+        locality_id = graphene.ID(required=True)
 
     neighborhood = graphene.Field(NeighborhoodType)
 
     @login_required
     @permission_required("addresses.add_neighborhood")
     def mutate(self, info, name, locality_id):
-
-        if not name:
-            raise GraphQLError("Name is required")
-
-        if not locality_id:
-            raise GraphQLError("Locality is required")
-
         try:
+            name = normalize_name(name)
             locality = Locality.objects.get(pk=locality_id)
             neighborhood = Neighborhood(name=name, locality=locality)
             neighborhood.save()
@@ -135,10 +119,6 @@ class DeleteNeighborhoodMutation(graphene.Mutation):
     @login_required
     @permission_required("addresses.delete_neighborhood")
     def mutate(self, info, id):
-
-        if not id:
-            raise GraphQLError("ID is required")
-
         try:
             neighborhood = Neighborhood.objects.get(pk=id)
             neighborhood.delete()
@@ -167,6 +147,7 @@ class UpdateNeighborhoodMutation(graphene.Mutation):
         try:
             neighborhood = Neighborhood.objects.get(pk=id)
             if name is not None:
+                name = normalize_name(name)
                 neighborhood.name = name
             if locality_id is not None:
                 locality_obj = Locality.objects.get(pk=locality_id)
@@ -195,13 +176,8 @@ class CreateAddressMutation(graphene.Mutation):
     @login_required
     @permission_required("addresses.add_address")
     def mutate(self, info, details, neighborhood_id):
-
-        if not details:
-            raise GraphQLError("Details is required")
-        if not neighborhood_id:
-            raise GraphQLError("Neighborhood is required")
-
         try:
+            details = details.split()
             neighborhood = Neighborhood.objects.get(pk=neighborhood_id)
             address = Address(details=details, neighborhood=neighborhood)
             address.save()
@@ -225,10 +201,6 @@ class DeleteAddressMutation(graphene.Mutation):
     @login_required
     @permission_required("addresses.delete_address")
     def mutate(self, info, id):
-
-        if not id:
-            raise GraphQLError("ID is required")
-
         try:
             address = Address.objects.get(pk=id)
             address.delete()
@@ -257,6 +229,7 @@ class UpdateAddressMutation(graphene.Mutation):
         try:
             address = Address.objects.get(pk=id)
             if details is not None:
+                details = details.split()
                 address.details = details
             if neighborhood_id is not None:
                 neighborhood_obj = Neighborhood.objects.get(pk=neighborhood_id)
