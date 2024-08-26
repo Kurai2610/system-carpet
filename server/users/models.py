@@ -30,7 +30,7 @@ class CustomUserManager(BaseUserManager):
         )
         user.is_staff = True
         user.is_superuser = True
-        admin_group = Group.objects.get(name='Admin')
+        admin_group, _ = Group.objects.get_or_create(name='Admin')
         user.groups.add(admin_group)
         user.save(using=self._db)
         return user
