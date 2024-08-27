@@ -42,7 +42,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=30, blank=False)
     last_name = models.CharField(max_length=30, blank=False)
     phone = models.CharField(max_length=20, blank=False, validators=[
-                             RegexValidator(r'^\+?1?\d{9,15}$')])
+                             RegexValidator(r'^(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$')])
     address = models.OneToOneField(
         Address, on_delete=models.PROTECT, null=True, blank=True)
 

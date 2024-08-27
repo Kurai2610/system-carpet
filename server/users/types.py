@@ -1,4 +1,3 @@
-import graphene
 from graphene import relay
 from django_filters import FilterSet
 from graphene_django import DjangoObjectType
@@ -18,6 +17,7 @@ class GroupType(DjangoObjectType):
     class Meta:
         model = Group
         interfaces = (relay.Node,)
+        fields = ('id', 'name')
         filterset_class = GroupFilter
 
 

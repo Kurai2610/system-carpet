@@ -229,6 +229,8 @@ class UpdateUserMutation(graphene.Mutation):
             raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError('An error occurred while saving the data.')
+        except Exception as e:
+            raise GraphQLError(f'Unknown error: {str(e)}')
 
 
 class Query(graphene.ObjectType):
