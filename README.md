@@ -75,6 +75,12 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
+10. Crea los grupos de permisos necesarios para el proyecto:
+
+```bash
+python manage.py create_groups_permissions
+```
+
 ## API GraphQL
 
 La API GraphQL está disponible en `/graphql/` y puedes explorarla usando GraphiQL.
