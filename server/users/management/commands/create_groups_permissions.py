@@ -19,11 +19,21 @@ class Command(BaseCommand):
                     'models': ['cartype', 'carmake', 'carmodel', 'productcategory', 'product'],
                     'actions': ['view', 'add', 'change', 'delete'],
                 },
+                {
+                    'app_label': 'supply_chains',
+                    'models': ['supplier', 'materialbysupplier', 'materialorder', 'orderdetail'],
+                    'actions': ['view', 'add', 'change', 'delete'],
+                },
             ],
             'Production Manager': [
                 {
                     'app_label': 'addresses',
                     'models': ['locality', 'neighborhood', 'address'],
+                    'actions': ['view', 'add', 'change', 'delete'],
+                },
+                {
+                    'app_label': 'supply_chains',
+                    'models': ['supplier', 'materialbysupplier', 'materialorder', 'orderdetail'],
                     'actions': ['view', 'add', 'change', 'delete'],
                 },
             ],
