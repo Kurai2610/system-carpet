@@ -334,6 +334,14 @@ class CreateOrderDetailMutation(graphene.Mutation):
     def mutate(self, info, material_order_id, material_by_supplier_id, quantity):
         try:
             material_order = MaterialOrder.objects.get(pk=material_order_id)
+
+            if material_order.status == 'DEL':
+                raise GraphQLError(
+                    'Cannot add order detail to a delivered order.')
+            elif material_order.status == 'CAN':
+                raise GraphQLError(
+                    'Cannot add order detail to a cancelled order.')
+
             material_by_supplier = MaterialBySupplier.objects.get(
                 pk=material_by_supplier_id)
             order_detail = OrderDetail.objects.create(
@@ -363,6 +371,14 @@ class DeleteOrderDetailMutation(graphene.Mutation):
     def mutate(self, info, id):
         try:
             order_detail = OrderDetail.objects.get(pk=id)
+
+            if order_detail.material_order.status == 'DEL':
+                raise GraphQLError(
+                    'Cannot delete order detail from a delivered order.')
+            elif order_detail.material_order.status == 'CAN':
+                raise GraphQLError(
+                    'Cannot delete order detail from a cancelled order.')
+
             order_detail.delete()
             return DeleteOrderDetailMutation(order_detail=order_detail)
         except OrderDetail.DoesNotExist:
@@ -374,7 +390,6 @@ class DeleteOrderDetailMutation(graphene.Mutation):
 class UpdateOrderDetailMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
-        material_order_id = graphene.ID()
         material_by_supplier_id = graphene.ID()
         quantity = graphene.Int()
 
@@ -382,17 +397,20 @@ class UpdateOrderDetailMutation(graphene.Mutation):
 
     @login_required
     @permission_required('supply_chains.change_orderdetail')
-    def mutate(self, info, id, material_order_id=None, material_by_supplier_id=None, quantity=None):
-        if not material_order_id and not material_by_supplier_id and not quantity:
+    def mutate(self, info, id, material_by_supplier_id=None, quantity=None):
+        if not material_by_supplier_id and not quantity:
             raise GraphQLError("No data to update.")
 
         try:
             order_detail = OrderDetail.objects.get(pk=id)
 
-            if material_order_id:
-                material_order = MaterialOrder.objects.get(
-                    pk=material_order_id)
-                order_detail.material_order = material_order
+            if order_detail.material_order.status == 'DEL':
+                raise GraphQLError(
+                    'Cannot update order detail from a delivered order.')
+            elif order_detail.material_order.status == 'CAN':
+                raise GraphQLError(
+                    'Cannot update order detail from a cancelled order.')
+
             if material_by_supplier_id:
                 material_by_supplier = MaterialBySupplier.objects.get(
                     pk=material_by_supplier_id)
