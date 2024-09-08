@@ -6,7 +6,6 @@ class InventoryItem(models.Model):
     TYPE_CHOICES = [
         ('MAT', 'Tapete'),
         ('RAW', 'Materia Prima'),
-        ('CUS', 'Orden Personalizada'),
     ]
 
     name = models.CharField(max_length=100, unique=True, null=False)
@@ -21,7 +20,6 @@ class InventoryItem(models.Model):
     def status(self):
         thresholds = {
             'MAT': {'low_stock_threshold': 10, 'out_of_stock_threshold': 0},
-            'CUS': {'low_stock_threshold': None, 'out_of_stock_threshold': 0},
             'RAW': {'low_stock_threshold': 40, 'out_of_stock_threshold': 0},
         }
 

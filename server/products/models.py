@@ -2,6 +2,7 @@ import datetime
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from inventories.models import InventoryItem
+from .validators import validate_material_is_raw
 
 
 class CarType(models.Model):
@@ -50,7 +51,24 @@ class ProductCategory(models.Model):
         return self.name
 
 
-class Product(models.Model):
+class CustomOption(models.Model):
+    name = models.CharField(max_length=50, blank=False,
+                            null=False, unique=True)
+    required = models.BooleanField(default=False)
+    description = models.TextField(blank=True, null=True)
+
+
+class CustomOptionDetail(models.Model):
+    custom_option = models.ForeignKey(
+        CustomOption, on_delete=models.CASCADE, null=False, blank=False)
+    name = models.CharField(max_length=50, blank=False,
+                            null=False, unique=True)
+    image_url = models.URLField(blank=False, null=False)
+    price = models.IntegerField(
+        blank=False, null=False, validators=[MinValueValidator(0)])
+
+
+class Carpet(models.Model):
     image_link = models.URLField(blank=False, null=False)
     price = models.IntegerField(
         blank=False, null=False, validators=[MinValueValidator(0)])
@@ -60,3 +78,7 @@ class Product(models.Model):
         CarModel, on_delete=models.PROTECT, null=False, blank=False)
     inventory_item = models.OneToOneField(
         InventoryItem, on_delete=models.CASCADE, null=False, blank=False)
+    material = models.ForeignKey(
+        InventoryItem, on_delete=models.PROTECT, related_name='material', null=False, blank=False, validators=[validate_material_is_raw])
+    custom_options = models.ManyToManyField(
+        CustomOption, blank=True, null=True)

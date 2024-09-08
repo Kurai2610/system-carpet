@@ -6,7 +6,9 @@ from .models import (
     CarMake,
     CarModel,
     ProductCategory,
-    Product
+    CustomOption,
+    CustomOptionDetail,
+    Carpet,
 )
 
 
@@ -46,13 +48,34 @@ class ProductCategoryFilter(FilterSet):
         }
 
 
-class ProductFilter(FilterSet):
+class CustomOptionFilter(FilterSet):
     class Meta:
-        model = Product
+        model = CustomOption
         fields = {
+            "name": ("exact", "icontains"),
+            "required": ("exact",),
+        }
+
+
+class CustomOptionDetailFilter(FilterSet):
+    class Meta:
+        model = CustomOptionDetail
+        fields = {
+            "name": ("exact", "icontains"),
+            "image_url": ("exact", "icontains"),
+            "price": ("exact", "icontains"),
+        }
+
+
+class CarpetFilter(FilterSet):
+    class Meta:
+        model = Carpet
+        fields = {
+            "image_link": ("exact", "icontains"),
             "price": ("exact", "icontains"),
             "category": ("exact",),
             "car_model": ("exact",),
+            "material": ("exact",),
         }
 
 
@@ -88,10 +111,26 @@ class ProductCategoryType(DjangoObjectType):
         filterset_class = ProductCategoryFilter
 
 
-class ProductType(DjangoObjectType):
+class CustomOptionType(DjangoObjectType):
     class Meta:
-        model = Product
+        model = CustomOption
         interfaces = (relay.Node,)
-        fields = ("id", "image_link", "price", "category",
-                  "car_model", "inventory_item")
-        filterset_class = ProductFilter
+        fields = ("id", "name", "required")
+        filterset_class = CustomOptionFilter
+
+
+class CustomOptionDetailType(DjangoObjectType):
+    class Meta:
+        model = CustomOptionDetail
+        interfaces = (relay.Node,)
+        fields = ("id", "name", "image_url", "price", "custom_option")
+        filterset_class = CustomOptionDetailFilter
+
+
+class CarpetType(DjangoObjectType):
+    class Meta:
+        model = Carpet
+        interfaces = (relay.Node,)
+        fields = ("id", "image_link", "price", "category", "car_model",
+                  "inventory_item", "material", "custom_options")
+        filterset_class = CarpetFilter

@@ -16,14 +16,18 @@ from .models import (
     CarMake,
     CarModel,
     ProductCategory,
-    Product
+    CustomOption,
+    CustomOptionDetail,
+    Carpet,
 )
 from .types import (
     CarTypeType,
     CarMakeType,
     CarModelType,
     ProductCategoryType,
-    ProductType
+    CustomOptionType,
+    CustomOptionDetailType,
+    CarpetType,
 )
 
 
@@ -347,125 +351,339 @@ class UpdateProductCategoryMutation(graphene.Mutation):
             raise GraphQLError(f"Unknown error: {str(e)}")
 
 
-class CreateProductMutation(graphene.Mutation):
+class CreateCustomOptionMutation(graphene.Mutation):
     class Arguments:
-        image_link = graphene.String(required=True)
-        price = graphene.Int(required=True)
-        category_id = graphene.ID(required=True)
-        car_model_id = graphene.ID(required=True)
-        # InventoryItem arguments
-        item_name = graphene.String(required=True)
-        item_description = graphene.String()
-        item_stock = graphene.Int(required=True)
-        item_type = graphene.String(required=True)
+        name = graphene.String(required=True)
+        required = graphene.Boolean(default_value=False)
+        description = graphene.String()
 
-    product = graphene.Field(ProductType)
+    custom_option = graphene.Field(CustomOptionType)
 
     @login_required
-    @permission_required('products.add_product')
-    def mutate(self, info, item_name, image_link, price, item_stock, item_type, category_id, car_model_id, item_description=None):
+    @permission_required('products.add_customoption')
+    def mutate(self, info, name, required=False, description=None):
 
         try:
-            with transaction.atomic():
-                product_category = ProductCategory.objects.get(pk=category_id)
-                car_model = CarModel.objects.get(pk=car_model_id)
-
-                inventory_item_mutation_result = CreateInventoryItemMutation.mutate(
-                    self, info, name=item_name, description=item_description, stock=item_stock, type=item_type)
-                inventory_itemType = inventory_item_mutation_result.inventory_item
-                inventory_item = InventoryItem.objects.get(
-                    pk=inventory_itemType.id)
-
-                product = Product(image_link=image_link, price=price, category=product_category,
-                                  car_model=car_model, inventory_item=inventory_item)
-                product.save()
-                return CreateProductMutation(product=product)
-        except ProductCategory.DoesNotExist:
-            raise GraphQLError('Product category not found')
-        except CarModel.DoesNotExist:
-            raise GraphQLError('Car model not found')
+            name = normalize_name(name, numbers=True)
+            if description:
+                description = description.strip()
+            custom_option = CustomOption(
+                name=name, required=required, description=description)
+            custom_option.save()
+            return CreateCustomOptionMutation(custom_option=custom_option)
         except ValidationError as e:
             raise GraphQLError(e)
         except IntegrityError as e:
             raise GraphQLError(
-                "Product with this inventory item already exists")
+                "Custom option with this name already exists")
         except Exception as e:
             raise GraphQLError(f"Unknown error: {str(e)}")
 
 
-class DeleteProductMutation(graphene.Mutation):
+class DeleteCustomOptionMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
 
     success = graphene.Boolean()
 
     @login_required
-    @permission_required('products.delete_product')
+    @permission_required('products.delete_customoption')
     def mutate(self, info, id):
 
         try:
-            with transaction.atomic():
-                product = Product.objects.get(pk=id)
-                product.delete()
-
-                item_id = product.inventory_item.id
-
-                DeleteInventoryItemMutation.mutate(
-                    self, info, id=item_id)
-                return DeleteProductMutation(success=True)
-        except Product.DoesNotExist:
-            raise GraphQLError('Product not found')
+            custom_option = CustomOption.objects.get(pk=id)
+            custom_option.delete()
+            return DeleteCustomOptionMutation(success=True)
+        except CustomOption.DoesNotExist:
+            raise GraphQLError('Custom option not found')
         except Exception as e:
             raise GraphQLError(f"Unknown error: {str(e)}")
 
 
-class UpdateProductMutation(graphene.Mutation):
+class UpdateCustomOptionMutation(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID(required=True)
+        name = graphene.String(required=False)
+        required = graphene.Boolean(required=False)
+        description = graphene.String(required=False)
+
+    custom_option = graphene.Field(CustomOptionType)
+
+    @login_required
+    @permission_required('products.change_customoption')
+    def mutate(self, info, id, name=None, required=None, description=None):
+
+        if not name and not required and not description:
+            raise GraphQLError("Name, required or description is required")
+
+        try:
+            custom_option = CustomOption.objects.get(pk=id)
+            if name is not None:
+                name = normalize_name(name, numbers=True)
+                custom_option.name = name
+            if required is not None:
+                custom_option.required = required
+            if description is not None:
+                custom_option.description = description.strip()
+            custom_option.save()
+            return UpdateCustomOptionMutation(custom_option=custom_option)
+        except CustomOption.DoesNotExist:
+            raise GraphQLError('Custom option not found')
+        except ValidationError as e:
+            raise GraphQLError(e)
+        except IntegrityError as e:
+            raise GraphQLError(
+                "Custom option with this name already exists")
+        except Exception as e:
+            raise GraphQLError(f"Unknown error: {str(e)}")
+
+
+class CreateCustomOptionDetailMutation(graphene.Mutation):
+    class Arguments:
+        name = graphene.String(required=True)
+        image_url = graphene.String(required=True)
+        price = graphene.Int(required=True)
+        custom_option_id = graphene.ID(required=True)
+
+    custom_option_detail = graphene.Field(CustomOptionDetailType)
+
+    @login_required
+    @permission_required('products.add_customoptiondetail')
+    def mutate(self, info, name, image_url, price, custom_option_id):
+        try:
+            name = normalize_name(name, numbers=True)
+            custom_option = CustomOption.objects.get(pk=custom_option_id)
+            custom_option_detail = CustomOptionDetail(
+                name=name, image_url=image_url, price=price, custom_option=custom_option)
+            custom_option_detail.save()
+            return CreateCustomOptionDetailMutation(custom_option_detail=custom_option_detail)
+        except CustomOption.DoesNotExist:
+            raise GraphQLError('Custom option not found')
+        except ValidationError as e:
+            raise GraphQLError(e)
+        except IntegrityError as e:
+            raise GraphQLError(
+                'Custom option detail with this name already exists')
+        except Exception as e:
+            raise GraphQLError(f"Unknown error: {str(e)}")
+
+
+class DeleteCustomOptionDetailMutation(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID(required=True)
+
+    success = graphene.Boolean()
+
+    @login_required
+    @permission_required('products.delete_customoptiondetail')
+    def mutate(self, info, id):
+
+        try:
+            custom_option_detail = CustomOptionDetail.objects.get(pk=id)
+            custom_option_detail.delete()
+            return DeleteCustomOptionDetailMutation(success=True)
+        except CustomOptionDetail.DoesNotExist:
+            raise GraphQLError('Custom option detail not found')
+        except Exception as e:
+            raise GraphQLError(f"Unknown error: {str(e)}")
+
+
+class UpdateCustomOptionDetailMutation(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID(required=True)
+        name = graphene.String(required=False)
+        image_url = graphene.String(required=False)
+        price = graphene.Int(required=False)
+        custom_option_id = graphene.ID(required=False)
+
+    custom_option_detail = graphene.Field(CustomOptionDetailType)
+
+    @login_required
+    @permission_required('products.change_customoptiondetail')
+    def mutate(self, info, id, name=None, image_url=None, price=None, custom_option_id=None):
+
+        if not name and not image_url and not price and not custom_option_id:
+            raise GraphQLError("At least one field should be filled")
+
+        try:
+            custom_option_detail = CustomOptionDetail.objects.get(pk=id)
+
+            if name:
+                name = normalize_name(name, numbers=True)
+                custom_option_detail.name = name
+            if image_url:
+                custom_option_detail.image_url = image_url
+            if price:
+                custom_option_detail.price = price
+            if custom_option_id:
+                custom_option = CustomOption.objects.get(pk=custom_option_id)
+                custom_option_detail.custom_option = custom_option
+
+            custom_option_detail.save()
+            return UpdateCustomOptionDetailMutation(custom_option_detail=custom_option_detail)
+        except CustomOptionDetail.DoesNotExist:
+            raise GraphQLError('Custom option detail not found')
+        except CustomOption.DoesNotExist:
+            raise GraphQLError('Custom option not found')
+        except ValidationError as e:
+            raise GraphQLError(e)
+        except IntegrityError as e:
+            raise GraphQLError(
+                "Custom option detail with this name already exists")
+        except Exception as e:
+            raise GraphQLError(f"Unknown error: {str(e)}")
+
+
+class CreateCarpetMutation(graphene.Mutation):
+    class Arguments:
+        image_link = graphene.String(required=True)
+        price = graphene.Int(required=True)
+        category_id = graphene.ID(required=True)
+        car_model_id = graphene.ID(required=True)
+        material_id = graphene.ID(required=True)
+        custom_options_ids = graphene.List(graphene.ID)
+        # InventoryItem arguments
+        item_name = graphene.String(required=True)
+        item_description = graphene.String()
+        item_stock = graphene.Int(required=True)
+        item_type = graphene.String(required=True)
+
+    carpet = graphene.Field(CarpetType)
+
+    @login_required
+    @permission_required('products.add_carpet')
+    def mutate(self, info, image_link, price, category_id, car_model_id, material_id, item_name, item_description, item_stock, item_type, custom_options_ids=None):
+
+        try:
+            with transaction.atomic():
+                category = ProductCategory.objects.get(pk=category_id)
+                car_model = CarModel.objects.get(pk=car_model_id)
+                material = InventoryItem.objects.get(pk=material_id)
+
+                item_name = normalize_name(item_name, numbers=True)
+
+                inventory_item = CreateInventoryItemMutation.mutate(
+                    self, info, name=item_name, description=item_description, stock=item_stock, type=item_type).inventory_item
+
+                carpet = Carpet(
+                    image_link=image_link,
+                    price=price,
+                    category=category,
+                    car_model=car_model,
+                    inventory_item=inventory_item,
+                    material=material
+                )
+                carpet.save()
+
+                if custom_options_ids:
+                    for custom_option_id in custom_options_ids:
+                        custom_option = CustomOption.objects.get(
+                            pk=custom_option_id)
+                        carpet.custom_options.add(custom_option)
+
+                return CreateCarpetMutation(carpet=carpet)
+        except ProductCategory.DoesNotExist:
+            raise GraphQLError('Product category not found')
+        except CarModel.DoesNotExist:
+            raise GraphQLError('Car model not found')
+        except InventoryItem.DoesNotExist:
+            raise GraphQLError('Inventory item not found')
+        except CustomOption.DoesNotExist:
+            raise GraphQLError('Custom option not found')
+        except ValidationError as e:
+            raise GraphQLError(e)
+        except IntegrityError as e:
+            raise GraphQLError(f"Unknown Integrity error: {str(e)}")
+        except Exception as e:
+            raise GraphQLError(f"Unknown error: {str(e)}")
+
+
+class DeleteCarpetMutation(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID(required=True)
+
+    success = graphene.Boolean()
+
+    @login_required
+    @permission_required('products.delete_carpet')
+    def mutate(self, info, id):
+
+        try:
+            with transaction.atomic():
+                carpet = Carpet.objects.get(pk=id)
+                DeleteInventoryItemMutation.mutate(
+                    self, info, id=carpet.inventory_item.id)
+                carpet.delete()
+                return DeleteCarpetMutation(success=True)
+        except Carpet.DoesNotExist:
+            raise GraphQLError('Carpet not found')
+        except Exception as e:
+            raise GraphQLError(f"Unknown error: {str(e)}")
+
+
+class UpdateCarpetMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
         image_link = graphene.String(required=False)
         price = graphene.Int(required=False)
-        category_id = graphene.ID(required=False)
+        category_id = graphene
         car_model_id = graphene.ID(required=False)
+        material_id = graphene.ID(required=False)
+        custom_options_ids = graphene.List(graphene.ID)
         # InventoryItem arguments
         item_name = graphene.String(required=False)
         item_description = graphene.String(required=False)
         item_stock = graphene.Int(required=False)
         item_type = graphene.String(required=False)
 
-    product = graphene.Field(ProductType)
+    carpet = graphene.Field(CarpetType)
 
     @login_required
-    @permission_required('products.change_product')
-    def mutate(self, info, id, image_link=None, price=None, category_id=None, car_model_id=None, item_name=None, item_description=None, item_stock=None, item_type=None):
+    @permission_required('products.change_carpet')
+    def mutate(self, info, id, image_link=None, price=None, category_id=None, car_model_id=None, material_id=None, item_name=None, item_description=None, item_stock=None, item_type=None, custom_options_ids=None):
 
-        if not image_link and not price and not category_id and not car_model_id and not item_name and not item_description and not item_stock and not item_type:
+        if not image_link and not price and not category_id and not car_model_id and not material_id and not item_name and not item_description and not item_stock and not item_type and not custom_options_ids:
             raise GraphQLError("At least one field should be filled")
 
         try:
             with transaction.atomic():
-                product = Product.objects.get(pk=id)
+                carpet = Carpet.objects.get(pk=id)
 
                 if image_link:
-                    product.image_link = image_link
+                    carpet.image_link = image_link
                 if price:
-                    product.price = price
+                    carpet.price = price
                 if category_id:
-                    product.category = ProductCategory.objects.get(
-                        pk=category_id)
+                    category = ProductCategory.objects.get(pk=category_id)
+                    carpet.category = category
                 if car_model_id:
-                    product.car_model = CarModel.objects.get(pk=car_model_id)
+                    car_model = CarModel.objects.get(pk=car_model_id)
+                    carpet.car_model = car_model
+                if material_id:
+                    material = InventoryItem.objects.get(pk=material_id)
+                    carpet.material = material
                 if item_name or item_description or item_stock or item_type:
                     UpdateInventoryItemMutation.mutate(
-                        self, info, id=product.inventory_item.id, name=item_name, description=item_description, stock=item_stock, type=item_type)
+                        self, info, id=carpet.inventory_item.id, name=item_name, description=item_description, stock=item_stock, type=item_type)
+                if custom_options_ids:
+                    carpet.custom_options.clear()
+                    for custom_option_id in custom_options_ids:
+                        custom_option = CustomOption.objects.get(
+                            pk=custom_option_id)
+                        carpet.custom_options.add(custom_option)
 
-                product.save()
-                return UpdateProductMutation(product=product)
-        except Product.DoesNotExist:
-            raise GraphQLError('Product not found')
+                carpet.save()
+                return UpdateCarpetMutation(carpet=carpet)
+        except Carpet.DoesNotExist:
+            raise GraphQLError('Carpet not found')
         except ProductCategory.DoesNotExist:
             raise GraphQLError('Product category not found')
         except CarModel.DoesNotExist:
             raise GraphQLError('Car model not found')
+        except InventoryItem.DoesNotExist:
+            raise GraphQLError('Inventory item not found')
+        except CustomOption.DoesNotExist:
+            raise GraphQLError('Custom option not found')
         except ValidationError as e:
             raise GraphQLError(e)
         except IntegrityError as e:
@@ -484,8 +702,8 @@ class Query(graphene.ObjectType):
     product_categories = DjangoFilterConnectionField(ProductCategoryType)
     product_category = graphene.Field(
         ProductCategoryType, id=graphene.ID(required=True))
-    products = DjangoFilterConnectionField(ProductType)
-    product = graphene.Field(ProductType, id=graphene.ID(required=True))
+    carpets = DjangoFilterConnectionField(CarpetType)
+    carpet = graphene.Field(CarpetType, id=graphene.ID(required=True))
 
     def resolve_car_types(self, info, **kwargs):
         return CarType.objects.all()
@@ -511,11 +729,11 @@ class Query(graphene.ObjectType):
     def resolve_product_category(self, info, id):
         return ProductCategory.objects.get(pk=id)
 
-    def resolve_products(self, info, **kwargs):
-        return Product.objects.all()
+    def resolve_carpets(self, info, **kwargs):
+        return Carpet.objects.all()
 
-    def resolve_product(self, info, id):
-        return Product.objects.get(pk=id)
+    def resolve_carpet(self, info, id):
+        return Carpet.objects.get(pk=id)
 
 
 class Mutation(graphene.ObjectType):
@@ -531,6 +749,12 @@ class Mutation(graphene.ObjectType):
     create_product_category = CreateProductCategoryMutation.Field()
     delete_product_category = DeleteProductCategoryMutation.Field()
     update_product_category = UpdateProductCategoryMutation.Field()
-    create_product = CreateProductMutation.Field()
-    delete_product = DeleteProductMutation.Field()
-    update_product = UpdateProductMutation.Field()
+    create_custom_option = CreateCustomOptionMutation.Field()
+    delete_custom_option = DeleteCustomOptionMutation.Field()
+    update_custom_option = UpdateCustomOptionMutation.Field()
+    create_custom_option_detail = CreateCustomOptionDetailMutation.Field()
+    delete_custom_option_detail = DeleteCustomOptionDetailMutation.Field()
+    update_custom_option_detail = UpdateCustomOptionDetailMutation.Field()
+    create_carpet = CreateCarpetMutation.Field()
+    delete_carpet = DeleteCarpetMutation.Field()
+    update_carpet = UpdateCarpetMutation.Field()

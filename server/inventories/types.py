@@ -27,7 +27,6 @@ class InventoryItemFilter(FilterSet):
     def filter_by_status(self, queryset, name, value):
         thresholds = {
             'MAT': {'low_stock_threshold': 10, 'out_of_stock_threshold': 0},
-            'CUS': {'low_stock_threshold': None, 'out_of_stock_threshold': 0},
             'RAW': {'low_stock_threshold': 40, 'out_of_stock_threshold': 0},
         }
 
@@ -52,11 +51,6 @@ class InventoryItemFilter(FilterSet):
                     type='RAW',
                     stock__lte=thresholds['RAW']['low_stock_threshold'],
                     then=Value('Low stock')
-                ),
-                When(
-                    type='CUS',
-                    stock__lte=thresholds['CUS']['out_of_stock_threshold'],
-                    then=Value('Out of stock')
                 ),
                 default=Value('Available'),
                 output_field=CharField(),
