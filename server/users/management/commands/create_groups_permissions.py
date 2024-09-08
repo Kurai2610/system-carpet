@@ -37,8 +37,13 @@ class Command(BaseCommand):
                     'actions': ['view', 'add', 'change', 'delete'],
                 },
             ],
-            'Sales Assistant': [],
-            'Distribution Manager': [],
+            'Sales Assistant': [
+                {
+                    'app_label': 'sales',
+                    'models': ['sale', 'saledetail', 'saledetailoption'],
+                    'actions': ['view', 'add', 'change', 'delete'],
+                }
+            ],
             'Client': [
                 {
                     'app_label': 'addresses',
@@ -49,7 +54,12 @@ class Command(BaseCommand):
                     'app_label': 'shopping_carts',
                     'models': ['shoppingcart', 'shoppingcartitem', 'shoppingcartitemoption'],
                     'actions': ['view', 'add', 'change', 'delete'],
-                }
+                },
+                {
+                    'app_label': 'sales',
+                    'models': ['paymethod', 'deliverymethod', 'sale', 'saledetail', 'saledetailoption'],
+                    'actions': ['view', 'add', 'change', 'delete'],
+                },
             ],
         }
 

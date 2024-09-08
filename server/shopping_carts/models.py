@@ -1,7 +1,10 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
-from products.models import Carpet, CustomOptionDetail
+from products.models import (
+    Carpet,
+    CustomOptionDetail,
+)
 
 
 class ShoppingCart(models.Model):
