@@ -626,10 +626,11 @@ class UpdateCarpetMutation(graphene.Mutation):
         id = graphene.ID(required=True)
         image_link = graphene.String(required=False)
         price = graphene.Int(required=False)
-        category_id = graphene
+        category_id = graphene.ID(required=False)
         car_model_id = graphene.ID(required=False)
         material_id = graphene.ID(required=False)
-        custom_options_ids = graphene.List(graphene.ID)
+        add_custom_options_ids = graphene.List(graphene.ID)
+        remove_custom_options_ids = graphene.List(graphene.ID)
         # InventoryItem arguments
         item_name = graphene.String(required=False)
         item_description = graphene.String(required=False)
@@ -640,9 +641,9 @@ class UpdateCarpetMutation(graphene.Mutation):
 
     @login_required
     @permission_required('products.change_carpet')
-    def mutate(self, info, id, image_link=None, price=None, category_id=None, car_model_id=None, material_id=None, item_name=None, item_description=None, item_stock=None, item_type=None, custom_options_ids=None):
+    def mutate(self, info, id, image_link=None, price=None, category_id=None, car_model_id=None, material_id=None, item_name=None, item_description=None, item_stock=None, item_type=None, add_custom_options_ids=None, remove_custom_options_ids=None):
 
-        if not image_link and not price and not category_id and not car_model_id and not material_id and not item_name and not item_description and not item_stock and not item_type and not custom_options_ids:
+        if not image_link and not price and not category_id and not car_model_id and not material_id and not item_name and not item_description and not item_stock and not item_type and not add_custom_options_ids and not remove_custom_options_ids:
             raise GraphQLError("At least one field should be filled")
 
         try:
@@ -665,12 +666,16 @@ class UpdateCarpetMutation(graphene.Mutation):
                 if item_name or item_description or item_stock or item_type:
                     UpdateInventoryItemMutation.mutate(
                         self, info, id=carpet.inventory_item.id, name=item_name, description=item_description, stock=item_stock, type=item_type)
-                if custom_options_ids:
-                    carpet.custom_options.clear()
-                    for custom_option_id in custom_options_ids:
+                if add_custom_options_ids:
+                    for custom_option_id in add_custom_options_ids:
                         custom_option = CustomOption.objects.get(
                             pk=custom_option_id)
                         carpet.custom_options.add(custom_option)
+                if remove_custom_options_ids:
+                    for custom_option_id in remove_custom_options_ids:
+                        custom_option = CustomOption.objects.get(
+                            pk=custom_option_id)
+                        carpet.custom_options.remove(custom_option)
 
                 carpet.save()
                 return UpdateCarpetMutation(carpet=carpet)

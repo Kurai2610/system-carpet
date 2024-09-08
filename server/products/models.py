@@ -81,4 +81,4 @@ class Carpet(models.Model):
     material = models.ForeignKey(
         InventoryItem, on_delete=models.PROTECT, related_name='material', null=False, blank=False, validators=[validate_material_is_raw])
     custom_options = models.ManyToManyField(
-        CustomOption, blank=True, null=True)
+        CustomOption, blank=True)
