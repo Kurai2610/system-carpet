@@ -36,7 +36,7 @@ class NormalUserType(DjangoObjectType):
     class Meta:
         model = get_user_model()
         exclude = ('password', 'is_superuser', 'is_staff',
-                   'is_active', 'date_joined', 'last_login')
+                   'is_active', 'date_joined', 'last_login', 'shoppingcart_set')
         interfaces = (relay.Node,)
         filterset_class = UserFilter
 

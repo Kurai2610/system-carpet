@@ -20,13 +20,17 @@ from supply_chains.schema import (
     Query as SupplyChainQuery,
     Mutation as SupplyChainMutation
 )
+from shopping_carts.schema import (
+    Query as ShoppingCartQuery,
+    Mutation as ShoppingCartMutation
+)
 
 
-class Query(UserQuery, AddressQuery, InventoryQuery, ProductQuery, SupplyChainQuery, graphene.ObjectType):
+class Query(UserQuery, AddressQuery, InventoryQuery, ProductQuery, SupplyChainQuery, ShoppingCartQuery, graphene.ObjectType):
     pass
 
 
-class Mutation(UserMutation, AddressMutation, InventoryMutation, ProductMutation, SupplyChainMutation, graphene.ObjectType):
+class Mutation(UserMutation, AddressMutation, InventoryMutation, ProductMutation, SupplyChainMutation, ShoppingCartMutation, graphene.ObjectType):
     token_auth = graphql_jwt.ObtainJSONWebToken.Field()
     verify_token = graphql_jwt.Verify.Field()
     refresh_token = graphql_jwt.Refresh.Field()
