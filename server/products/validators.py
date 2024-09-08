@@ -1,5 +1,5 @@
 from django.core.exceptions import ValidationError
-from models import InventoryItem
+from inventories.models import InventoryItem
 
 
 def validate_material_is_raw(value):
