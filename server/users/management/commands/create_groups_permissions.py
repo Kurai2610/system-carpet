@@ -16,7 +16,7 @@ class Command(BaseCommand):
                 },
                 {
                     'app_label': 'products',
-                    'models': ['cartype', 'carmake', 'carmodel', 'productcategory', 'product'],
+                    'models': ['cartype', 'carmake', 'carmodel', 'productcategory', 'carpet'],
                     'actions': ['view', 'add', 'change', 'delete'],
                 },
                 {
