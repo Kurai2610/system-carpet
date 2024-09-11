@@ -51,6 +51,11 @@ class Command(BaseCommand):
                     'actions': ['add', 'change'],
                 },
                 {
+                    'app_label': 'addresses',
+                    'models': ['locality', 'neighborhood'],
+                    'actions': ['view'],
+                },
+                {
                     'app_label': 'shopping_carts',
                     'models': ['shoppingcart', 'shoppingcartitem', 'shoppingcartitemoption'],
                     'actions': ['view', 'add', 'change', 'delete'],
