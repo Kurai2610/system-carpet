@@ -5,7 +5,6 @@ from django.db import IntegrityError, transaction
 from django.core.exceptions import ValidationError
 from graphql_jwt.decorators import login_required, permission_required
 from core.utils import normalize_name
-from addresses.models import Address
 from inventories.models import InventoryItem
 from addresses.utils import (
     create_address,

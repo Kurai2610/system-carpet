@@ -11,10 +11,9 @@ from .types import (
     UserType,
     NormalUserType
 )
-from addresses.models import Address
-from addresses.schema import (
-    CreateAddressMutation,
-    UpdateAddressMutation
+from addresses.utils import (
+    create_address,
+    update_address,
 )
 
 
@@ -203,22 +202,12 @@ class UpdateUserMutation(graphene.Mutation):
                 if addres_details or neighborhood_id:
                     if user.address:
                         address_id = user.address.id
-                        address_mutation_result = UpdateAddressMutation.mutate(
-                            self=self, info=info, id=address_id, details=addres_details, neighborhood_id=neighborhood_id)
-                        if address_mutation_result.errors:
-                            raise GraphQLError(
-                                "An error occurred while updating the address. Please try again.")
-                        addressType = address_mutation_result.address
-                        address = Address.objects.get(id=addressType.id)
+                        address = update_address(
+                            address_id, address_details=addres_details, neighborhood_id=neighborhood_id)
                         user.address = address
                     else:
-                        address_mutation_result = CreateAddressMutation.mutate(
-                            self=self, info=info, details=addres_details, neighborhood_id=neighborhood_id)
-                        if address_mutation_result.errors:
-                            raise GraphQLError(
-                                "An error occurred while creating the address. Please try again.")
-                        addressType = address_mutation_result.address
-                        address = Address.objects.get(id=addressType.id)
+                        address = create_address(
+                            addres_details, neighborhood_id)
                         user.address = address
 
                 user.save()

@@ -1,7 +1,7 @@
 import graphene
 from graphql import GraphQLError
 from graphene_django.filter import DjangoFilterConnectionField
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from graphql_jwt.decorators import login_required, permission_required
 from products.models import Carpet, CustomOptionDetail
