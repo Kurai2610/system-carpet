@@ -7,10 +7,10 @@ from graphql_jwt.decorators import login_required, permission_required
 from core.utils import normalize_name
 from addresses.models import Address
 from inventories.models import InventoryItem
-from addresses.schema import (
-    CreateAddressMutation,
-    UpdateAddressMutation,
-    DeleteAddressMutation
+from addresses.utils import (
+    create_address,
+    delete_address,
+    update_address,
 )
 from .models import (
     Supplier,
@@ -43,10 +43,7 @@ class CreateSupplierMutation(graphene.Mutation):
         try:
             with transaction.atomic():
                 name = normalize_name(name)
-                address_mutation_result = CreateAddressMutation.mutate(
-                    self=self, info=info, details=address_details, neighborhood_id=neighborhood_id)
-                addressType = address_mutation_result.address
-                address = Address.objects.get(pk=addressType.id)
+                address = create_address(address_details, neighborhood_id)
                 supplier = Supplier.objects.create(
                     name=name,
                     email=email,
@@ -78,8 +75,7 @@ class DeleteSupplierMutation(graphene.Mutation):
                 supplier.delete()
 
                 address_id = supplier.address.id
-                DeleteAddressMutation.mutate(
-                    self=self, info=info, id=address_id)
+                delete_address(address_id)
 
                 return DeleteSupplierMutation(supplier=supplier)
         except Supplier.DoesNotExist:
@@ -121,22 +117,12 @@ class UpdateSupplierMutation(graphene.Mutation):
                 if address_details or neighborhood_id:
                     if supplier.address:
                         address_id = supplier.address.id
-                        address_mutation_result = UpdateAddressMutation.mutate(
-                            self=self, info=info, id=address_id, details=address_details, neighborhood_id=neighborhood_id)
-                        if address_mutation_result.errors:
-                            raise GraphQLError(
-                                "An error occurred while updating the address. Please try again.")
-                        addressType = address_mutation_result.address
-                        address = Address.objects.get(id=addressType.id)
+                        address = update_address(
+                            address_id, address_details, neighborhood_id)
                         supplier.address = address
                     else:
-                        address_mutation_result = CreateAddressMutation.mutate(
-                            self=self, info=info, details=address_details, neighborhood_id=neighborhood_id)
-                        if address_mutation_result.errors:
-                            raise GraphQLError(
-                                "An error occurred while creating the address. Please try again.")
-                        addressType = address_mutation_result.address
-                        address = Address.objects.get(id=addressType.id)
+                        address = create_address(
+                            address_details, neighborhood_id)
                         supplier.address = address
 
                 supplier.save()
