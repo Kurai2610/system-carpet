@@ -6,10 +6,10 @@ from django.core.exceptions import ValidationError
 from graphql_jwt.decorators import login_required, permission_required
 from core.utils import normalize_name
 from inventories.models import InventoryItem
-from inventories.schema import (
-    CreateInventoryItemMutation,
-    DeleteInventoryItemMutation,
-    UpdateInventoryItemMutation
+from inventories.utils import (
+    create_inventory_item,
+    delete_inventory_item,
+    update_inventory_item,
 )
 from .models import (
     CarType,
@@ -562,8 +562,8 @@ class CreateCarpetMutation(graphene.Mutation):
 
                 item_name = normalize_name(item_name, numbers=True)
 
-                inventory_item = CreateInventoryItemMutation.mutate(
-                    self, info, name=item_name, description=item_description, stock=item_stock, type=item_type).inventory_item
+                inventory_item = create_inventory_item(
+                    name=item_name, description=item_description, stock=item_stock, type=item_type)
 
                 carpet = Carpet(
                     image_link=image_link,
@@ -611,9 +611,12 @@ class DeleteCarpetMutation(graphene.Mutation):
         try:
             with transaction.atomic():
                 carpet = Carpet.objects.get(pk=id)
-                DeleteInventoryItemMutation.mutate(
-                    self, info, id=carpet.inventory_item.id)
-                carpet.delete()
+                result = delete_inventory_item(carpet.inventory_item.id)
+                if result:
+                    carpet.delete()
+                else:
+                    raise GraphQLError(
+                        "Carpet inventory item could not be deleted")
                 return DeleteCarpetMutation(success=True)
         except Carpet.DoesNotExist:
             raise GraphQLError('Carpet not found')
@@ -664,8 +667,8 @@ class UpdateCarpetMutation(graphene.Mutation):
                     material = InventoryItem.objects.get(pk=material_id)
                     carpet.material = material
                 if item_name or item_description or item_stock or item_type:
-                    UpdateInventoryItemMutation.mutate(
-                        self, info, id=carpet.inventory_item.id, name=item_name, description=item_description, stock=item_stock, type=item_type)
+                    update_inventory_item(
+                        id=carpet.inventory_item.id, name=item_name, description=item_description, stock=item_stock, type=item_type)
                 if add_custom_options_ids:
                     for custom_option_id in add_custom_options_ids:
                         custom_option = CustomOption.objects.get(
