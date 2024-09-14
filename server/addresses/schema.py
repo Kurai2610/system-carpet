@@ -177,7 +177,7 @@ class CreateAddressMutation(graphene.Mutation):
     @permission_required("addresses.add_address")
     def mutate(self, info, details, neighborhood_id):
         try:
-            details = details.split()
+            details = details.strip()
             neighborhood = Neighborhood.objects.get(pk=neighborhood_id)
             address = Address(details=details, neighborhood=neighborhood)
             address.save()
@@ -229,7 +229,7 @@ class UpdateAddressMutation(graphene.Mutation):
         try:
             address = Address.objects.get(pk=id)
             if details is not None:
-                details = details.split()
+                details = details.strip()
                 address.details = details
             if neighborhood_id is not None:
                 neighborhood_obj = Neighborhood.objects.get(pk=neighborhood_id)
