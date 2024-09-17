@@ -1,6 +1,7 @@
 aniso8601==9.0.1
 anytree==2.12.1
 asgiref==3.8.1
+dj-database-url==2.2.0
 Django==4.2.15
 django-cors-headers==4.4.0
 django-filter==21.1
@@ -10,6 +11,8 @@ graphene-django==3.2.2
 graphene-django-filter==0.6.5
 graphql-core==3.2.3
 graphql-relay==3.2.0
+gunicorn==23.0.0
+packaging==24.1
 promise==2.3
 psycopg2==2.9.9
 psycopg2-binary==2.9.9
