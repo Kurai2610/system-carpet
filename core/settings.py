@@ -10,7 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
-from decouple import config
+from decouple import config, Csv
 from pathlib import Path
 import dj_database_url
 
@@ -161,8 +161,7 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    config('ALLOWED_HOST', default='http://localhost:3000'),
-]
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='', cast=Csv())
+
 
 CORS_ALLOW_CREDENTIALS = True
